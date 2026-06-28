@@ -34,16 +34,24 @@ end;
 $$;
 grant execute on function public.create_account_for_current_user(text) to authenticated;
 
--- List members (with email) of the caller's account — auth.users isn't exposed
--- to the client, so the Team screen needs this.
-create or replace function public.list_account_members()
+-- List members (with email) of a SPECIFIC account the caller belongs to —
+-- auth.users isn't exposed to the client, so the Team screen needs this. Scoped
+-- to one validated account so a user with memberships in multiple orgs never
+-- sees a merged roster or an inflated seat count.
+create or replace function public.list_account_members(p_account_id uuid)
 returns table(user_id uuid, email text, role text, created_at timestamptz)
-language sql security definer set search_path = public, auth
+language plpgsql security definer set search_path = public, auth
 as $$
-  select m.user_id, u.email::text, m.role, m.created_at
-  from memberships m
-  join auth.users u on u.id = m.user_id
-  where m.account_id in (select account_id from memberships where user_id = auth.uid())
-  order by m.created_at;
+begin
+  if not public.is_account_member(p_account_id) then
+    raise exception 'Not a member of this organization';
+  end if;
+  return query
+    select m.user_id, u.email::text, m.role, m.created_at
+    from memberships m
+    join auth.users u on u.id = m.user_id
+    where m.account_id = p_account_id
+    order by m.created_at;
+end;
 $$;
-grant execute on function public.list_account_members() to authenticated;
+grant execute on function public.list_account_members(uuid) to authenticated;

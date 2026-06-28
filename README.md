@@ -47,7 +47,7 @@ quantos/
 
 ### 1. Supabase
 1. Create a project at [supabase.com](https://supabase.com).
-2. Run the SQL in `supabase/migrations/` in order (`0001` → `0004`) via the
+2. Run the SQL in `supabase/migrations/` in order (`0001` → `0005`) via the
    SQL editor, or `supabase db reset` with the CLI.
 3. In **apps/index.html**, set the `SUPABASE_URL` and `SUPABASE_ANON_KEY`
    constants near the top of the `<script type="module">` block.

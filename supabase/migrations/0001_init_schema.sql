@@ -207,6 +207,9 @@ create index on loss_events (account_id, created_at);
 -- ---------------------------------------------------------------------------
 
 -- Items at/below their reorder point, with how many to order to reach max.
+-- An item only participates in reorder logic once it has a min_level set
+-- (min_level > 0) — matches the isLow() predicate in the frontend so the SQL
+-- view, the UI list, the "reorder only" filter, and the banner all agree.
 create view item_reorder as
 select
   i.*,
@@ -214,7 +217,7 @@ select
   greatest(i.max_level - i.quantity, 0) as reorder_qty
 from items i
 left join locations l on l.id = i.location_id
-where i.quantity <= i.min_level;
+where i.min_level > 0 and i.quantity <= i.min_level;
 
 -- Live possession ledger — who currently has what.
 create view current_possession as

@@ -50,8 +50,48 @@ project; **no code was copied** — Quantos is written from scratch.
 QR codes, barcodes, TV display mode (excluded per spec). Email invites, finer
 per-role write restrictions, and offline mode are future work.
 
+## Hardening pass (post-build adversarial review)
+
+A 7-dimension multi-agent review (each finding re-verified by an independent
+skeptic) surfaced 15 confirmed issues; all were fixed:
+
+**High**
+- *Storage cross-tenant writes* — `0004_storage.sql` insert/update/delete policies
+  now require `is_account_member((storage.foldername(name))[1]::uuid)`, so a user
+  can only touch photos under their own account folder (was bucket_id-only).
+- *Audit-log bypass on item edit* — the On-hand field is now read-only when
+  editing; quantity is only written on create (with an "Opening balance" ledger
+  row). All later changes go through the `+/−` path.
+- *Non-atomic stock adjust* — replaced the two client writes with an atomic
+  `adjust_item_stock()` RPC (`0005_integrity.sql`); a failed audit insert now
+  rolls back the quantity change.
+
+**Medium**
+- *Checkout race / double-book* — checkout now claims assets with a
+  status-guarded update and only writes ledger rows for assets actually won
+  (rolls back on failure); backstopped by a partial unique index
+  `checkouts_one_open_per_asset`.
+- *Dangling open checkout on loss* — reporting a checked-out asset lost now also
+  closes its open checkout row.
+- *Bulk-checkout error swallowing* — the asset-update error is captured and
+  surfaced (folded into the claim-then-insert flow above).
+
+**Low**
+- Overdue check uses local date (was UTC, off-by-one near midnight).
+- One `isLow()` predicate shared by badge / filter / banner / SQL view; banner &
+  badge no longer say "order 0".
+- Purchasing-signal grouping keys on `asset_id` when linked, else a trimmed name.
+- `list_account_members(p_account_id)` is scoped to one validated account (was
+  all of the caller's accounts) — prevents a merged roster / inflated seat count.
+- Inventory filter listener registered once (was 4×), and on `change` too.
+
+Public photo *read* is intentionally left open (bucket is public; UUID-prefixed
+paths) — documented in `0004_storage.sql` with the private-bucket + signed-URL
+alternative if stricter confidentiality is wanted.
+
 ## Verification done
 - `node --check` passes on all functions, lib, and entitlements.
-- Inline SPA module (~64k chars) parses cleanly as ESM.
-- All 87 `$('id')` references have matching `id="…"` definitions.
+- Inline SPA module parses cleanly as ESM after all edits.
+- Every `$('id')` reference still resolves to a matching `id="…"`.
+- App + landing re-rendered in preview with zero console errors.
 - Not pushed to GitHub (local `git init` only, per instructions).

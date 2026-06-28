@@ -347,7 +347,7 @@ const toast = (m) => { const t=$('toast'); t.textContent=m; t.classList.add('sho
 const money = (n) => (n==null||n==='') ? '—' : '$'+Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
 const money0 = (n) => (n==null) ? '$0' : '$'+Math.round(Number(n)).toLocaleString();
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}) : '—';
-const todayISO = () => new Date().toISOString().slice(0,10);
+const todayISO = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 const daysAgoISO = (n) => new Date(Date.now()-n*86400000).toISOString().slice(0,10);
 const limitOf = (kind) => (PLANS[state.account?.plan]||PLANS.starter).limits[kind];
 const unlimited = (n) => n>=1e6;
@@ -495,9 +495,11 @@ async function loadAssets(){
 // ============================================================================
 // MODULE 1 — INVENTORY
 // ============================================================================
-function reorderList(){
-  return state.items.filter(i => Number(i.quantity) <= Number(i.min_level) && (Number(i.max_level)>0 || Number(i.min_level)>0));
-}
+// Single source of truth for "this item needs attention". An item only counts
+// as low once it has a reorder point set (min_level > 0) — used by the badge,
+// the "reorder only" filter, the banner, and mirrored by the item_reorder view.
+function isLow(i){ return Number(i.min_level) > 0 && Number(i.quantity) <= Number(i.min_level); }
+function reorderList(){ return state.items.filter(isLow); }
 function reorderQty(i){ return Math.max(Number(i.max_level||0) - Number(i.quantity||0), 0); }
 
 function renderInventory(){
@@ -507,8 +509,9 @@ function renderInventory(){
   $('invLoc').innerHTML=`<option value="">All locations</option>`+state.locations.map(l=>`<option value="${l.id}">${esc(l.name)}</option>`).join('');
 
   const ro=reorderList();
+  const orderTotal=ro.reduce((s,i)=>s+reorderQty(i),0);
   $('reorderBanner').innerHTML = ro.length
-    ? `<div class="alertbar">⚠ ${ro.length} item${ro.length>1?'s':''} at or below reorder point — order ${ro.reduce((s,i)=>s+reorderQty(i),0)} unit(s) total to restock to max.</div>`
+    ? `<div class="alertbar">⚠ ${ro.length} item${ro.length>1?'s':''} at or below reorder point${orderTotal>0?` — order ${orderTotal} unit(s) total to restock to max`:''}.</div>`
     : '';
   renderItems();
 }
@@ -519,7 +522,7 @@ function filteredItems(){
   return state.items.filter(i=>{
     if(cat && i.category!==cat) return false;
     if(loc && i.location_id!==loc) return false;
-    if(low && !(Number(i.quantity)<=Number(i.min_level))) return false;
+    if(low && !isLow(i)) return false;
     if(q){
       const hay=`${i.name||''} ${i.sku||''} ${(i.tags||[]).join(' ')} ${i.category||''}`.toLowerCase();
       if(!hay.includes(q)) return false;
@@ -536,7 +539,7 @@ function renderItems(){
   const page=list.slice(start, start+INV_PAGE_SIZE);
 
   $('invBody').innerHTML = page.length ? page.map(i=>{
-    const low=Number(i.quantity)<=Number(i.min_level);
+    const low=isLow(i);
     const ro=reorderQty(i);
     const photo=i.photo_url?`<img class="thumb" src="${esc(i.photo_url)}" alt="">`:`<div class="thumb"></div>`;
     return `<tr>
@@ -545,7 +548,7 @@ function renderItems(){
         ${(i.tags||[]).length?`<div class="pill-row" style="margin-top:4px">${i.tags.map(t=>`<span class="badge b-muted">${esc(t)}</span>`).join('')}</div>`:''}</td>
       <td class="muted">${esc(i.category||'—')}</td>
       <td class="muted">${esc(locName(i.location_id))}</td>
-      <td class="right">${low?`<span class="badge b-warn">${i.quantity} · order ${ro}</span>`:`<span class="mono">${i.quantity}</span>`}</td>
+      <td class="right">${low?`<span class="badge b-warn">${i.quantity}${ro>0?` · order ${ro}`:' · low'}</span>`:`<span class="mono">${i.quantity}</span>`}</td>
       <td class="right muted mono">${i.min_level} / ${i.max_level}</td>
       <td class="right"><div class="qty">
         <button class="btn iconbtn" data-dec="${i.id}">−</button>
@@ -565,9 +568,10 @@ function renderItems(){
     </span>`;
 }
 
-['invSearch','invCat','invLoc','invLow'].forEach(id=>{
-  document.addEventListener('input', (e)=>{ if(e.target.id===id){ state.invPage=1; renderItems(); } });
-});
+const INV_FILTER_IDS=['invSearch','invCat','invLoc','invLow'];
+['input','change'].forEach(evt=>document.addEventListener(evt,(e)=>{
+  if(INV_FILTER_IDS.includes(e.target.id)){ state.invPage=1; renderItems(); }
+}));
 
 // ---- Add / edit item ----
 window.openItemForm = (id) => {
@@ -581,10 +585,11 @@ window.openItemForm = (id) => {
     <div class="row"><div><label>Category</label><input id="f_cat" value="${esc(it?.category||'')}" placeholder="e.g., Consumables"></div>
       <div><label>Location</label><select id="f_loc"><option value="">—</option>${locOpts}</select></div></div>
     <label>Tags <span class="muted">(comma-separated)</span></label><input id="f_tags" value="${esc((it?.tags||[]).join(', '))}" placeholder="ppe, gloves">
-    <div class="row"><div><label>On hand</label><input id="f_qty" type="number" min="0" step="any" value="${it?.quantity??0}"></div>
+    <div class="row"><div><label>On hand</label><input id="f_qty" type="number" min="0" step="any" value="${it?.quantity??0}" ${it?'readonly':''}></div>
       <div><label>Min level</label><input id="f_min" type="number" min="0" step="any" value="${it?.min_level??0}"></div>
       <div><label>Max level</label><input id="f_max" type="number" min="0" step="any" value="${it?.max_level??0}"></div>
       <div><label>Unit cost</label><input id="f_cost" type="number" min="0" step="any" value="${it?.unit_cost??''}"></div></div>
+    ${it?`<div class="help">On hand is locked here — use the + / − buttons so every stock change is logged with a reason.</div>`:''}
     <label>Photo</label><input id="f_photo" type="file" accept="image/*">
     ${it?.photo_url?`<div class="help">Current photo kept unless you choose a new one.</div>`:''}
     <div class="actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
@@ -598,15 +603,25 @@ window.openItemForm = (id) => {
     let photo_url=it?.photo_url||null;
     const file=$('f_photo').files?.[0];
     if(file){ const url=await uploadPhoto(file,'items'); if(url) photo_url=url; }
+    const qty=Number($('f_qty').value||0);
+    // quantity is only set on CREATE; on edit it's read-only and changes go
+    // through openAdjust (which always writes an inventory_transactions row).
     const row={ account_id:state.account.id, name, sku:$('f_sku').value.trim()||null,
       category:$('f_cat').value.trim()||null, location_id:$('f_loc').value||null,
       tags:$('f_tags').value.split(',').map(t=>t.trim()).filter(Boolean),
-      quantity:Number($('f_qty').value||0), min_level:min, max_level:max,
+      min_level:min, max_level:max,
       unit_cost:$('f_cost').value!==''?Number($('f_cost').value):null, photo_url, updated_at:new Date().toISOString() };
-    const { error } = it ? await sb.from('items').update(row).eq('id',it.id)
-                          : await sb.from('items').insert(row);
+    let error, newId=null;
+    if(it){ ({ error } = await sb.from('items').update(row).eq('id',it.id)); }
+    else { row.quantity=qty; const ins=await sb.from('items').insert(row).select('id').single(); error=ins.error; newId=ins.data?.id; }
+    if(error){ $('f_save').disabled=false; return toast(error.message.includes('duplicate')?`SKU "${row.sku}" already exists.`:error.message); }
+    // Opening balance becomes the first ledger entry, so the audit log reconciles.
+    if(!it && newId && qty>0){
+      await sb.from('inventory_transactions').insert({ account_id:state.account.id, item_id:newId,
+        user_id:state.userId, actor_name:state.userEmail, delta:qty, qty_after:qty,
+        reason:'Opening balance', note:'Initial stock on item creation' });
+    }
     $('f_save').disabled=false;
-    if(error) return toast(error.message.includes('duplicate')?`SKU "${row.sku}" already exists.`:error.message);
     closeModal(); toast(it?'Item saved':'Item added'); await loadItems(); renderInventory();
   };
 };
@@ -634,12 +649,12 @@ function openAdjust(id, dir){
     const qty_after=Number(it.quantity)+delta;
     if(qty_after<0) return toast(`Only ${it.quantity} on hand — can't remove ${amt}.`);
     $('a_save').disabled=true;
-    const { error:upErr } = await sb.from('items').update({ quantity:qty_after, updated_at:new Date().toISOString() }).eq('id',it.id);
-    if(upErr){ $('a_save').disabled=false; return toast(upErr.message); }
-    const { error:txErr } = await sb.from('inventory_transactions').insert({
-      account_id:state.account.id, item_id:it.id, user_id:state.userId, actor_name:state.userEmail,
-      delta, qty_after, reason, note:$('a_note').value.trim()||null });
-    if(txErr) toast('Saved, but log failed: '+txErr.message);
+    // Atomic: the RPC updates quantity AND writes the audit row in one
+    // transaction, so a failed log can never leave an unrecorded stock change.
+    const { error } = await sb.rpc('adjust_item_stock', {
+      p_item_id:it.id, p_delta:delta, p_reason:reason,
+      p_note:$('a_note').value.trim()||null, p_actor:state.userEmail });
+    if(error){ $('a_save').disabled=false; return toast(error.message); }
     closeModal(); toast(`${dir>0?'Added':'Removed'} ${amt} — ${reason}`); await loadItems(); renderInventory();
   };
 }
@@ -792,13 +807,25 @@ window.openCheckoutForm = (presetId) => {
     if(!person) return toast('Person is required.');
     $('c_save').disabled=true;
     const due=$('c_due').value||null;
-    const rows=ids.map(asset_id=>({ account_id:state.account.id, asset_id, person_name:person,
+    // Claim the assets first with a status-guarded update so a concurrent or
+    // stale-modal checkout can't double-book one asset. Only assets we actually
+    // win (were still 'available') get checkout rows.
+    const { data:won, error:claimErr } = await sb.from('assets')
+      .update({ status:'checked_out', updated_at:new Date().toISOString() })
+      .in('id',ids).eq('status','available').select('id');
+    if(claimErr){ $('c_save').disabled=false; return toast(claimErr.message); }
+    const wonIds=(won||[]).map(w=>w.id);
+    if(!wonIds.length){ $('c_save').disabled=false; await loadAssets(); renderCheckout(); return toast('Those assets are no longer available.'); }
+    const rows=wonIds.map(asset_id=>({ account_id:state.account.id, asset_id, person_name:person,
       person_email:$('c_email').value.trim()||null, location:$('c_where').value.trim()||null,
       checked_out_by:state.userId, checked_out_by_name:state.userEmail, expected_return_at:due, status:'out' }));
     const { error } = await sb.from('checkouts').insert(rows);
-    if(error){ $('c_save').disabled=false; return toast(error.message); }
-    await sb.from('assets').update({ status:'checked_out', updated_at:new Date().toISOString() }).in('id',ids);
-    closeModal(); toast(`Checked out ${ids.length} asset(s) to ${person}`);
+    if(error){ // roll the claim back so the assets aren't stuck as checked_out
+      await sb.from('assets').update({ status:'available', updated_at:new Date().toISOString() }).in('id',wonIds);
+      $('c_save').disabled=false; return toast(error.message); }
+    closeModal();
+    const skipped=ids.length-wonIds.length;
+    toast(`Checked out ${wonIds.length} asset(s) to ${person}${skipped?` · ${skipped} skipped (unavailable)`:''}`);
     await loadAssets(); renderCheckout();
   };
 };
@@ -860,9 +887,16 @@ async function renderRequests(){
   const { data, error } = await sb.from('asset_requests').select('*').order('created_at',{ascending:true});
   if(error) return ($('co-requests').innerHTML=`<div class="card">${esc(error.message)}</div>`);
   const all=data||[]; const open=all.filter(r=>r.status==='open');
-  // group open by item_name for the purchasing signal
+  const assetById=Object.fromEntries(state.assets.map(a=>[a.id,a]));
+  // group for the purchasing signal — by linked asset when known, else by a
+  // trimmed/lowercased name, so different wording for the same thing doesn't
+  // split (and understate) demand.
   const groups={};
-  open.forEach(r=>{ const k=(r.item_name||'').toLowerCase(); (groups[k]=groups[k]||{name:r.item_name,count:0,oldest:r.created_at,urgent:0}); groups[k].count++; if(r.created_at<groups[k].oldest) groups[k].oldest=r.created_at; if(r.urgency==='high'||r.urgency==='critical') groups[k].urgent++; });
+  open.forEach(r=>{ const k=r.asset_id||(r.item_name||'').trim().toLowerCase();
+    const name=r.asset_id?(assetById[r.asset_id]?.name||r.item_name):r.item_name;
+    (groups[k]=groups[k]||{name,count:0,oldest:r.created_at,urgent:0}); groups[k].count++;
+    if(r.created_at<groups[k].oldest) groups[k].oldest=r.created_at;
+    if(r.urgency==='high'||r.urgency==='critical') groups[k].urgent++; });
   const ranked=Object.values(groups).sort((a,b)=>b.count-a.count);
   const urgBadge=(u)=>({low:'b-muted',normal:'b-blue',high:'b-warn',critical:'b-bad'}[u]||'b-muted');
   $('co-requests').innerHTML=`
@@ -959,7 +993,14 @@ window.openLossForm = (assetId) => {
       person_responsible:$('x_person').value.trim()||null, reported_by:state.userId, reported_by_name:state.userEmail });
     if(error){ $('x_save').disabled=false; return toast(error.message); }
     // mark an asset lost (not when wear_and_tear, which is just condition)
-    if(asset_id && cat!=='wear_and_tear'){ await sb.from('assets').update({ status:'lost', updated_at:new Date().toISOString() }).eq('id',asset_id); await loadAssets(); }
+    if(asset_id && cat!=='wear_and_tear'){
+      const now=new Date().toISOString();
+      await sb.from('assets').update({ status:'lost', updated_at:now }).eq('id',asset_id);
+      // close any open checkout so the possession ledger doesn't keep it "out"
+      await sb.from('checkouts').update({ status:'returned', returned_at:now, return_notes:'Auto-closed — asset reported '+cat })
+        .eq('asset_id',asset_id).eq('status','out');
+      await loadAssets();
+    }
     closeModal(); toast('Loss recorded'); if(state.coTab==='loss') renderLoss(); else renderCheckout();
   };
 };
@@ -989,7 +1030,9 @@ window.runReports = async () => {
 
   // 2. Most requested (+ avg wait)
   const rg={};
-  reqs.forEach(r=>{ const k=(r.item_name||'').toLowerCase(); (rg[k]=rg[k]||{name:r.item_name,n:0,wait:0,open:0}); rg[k].n++;
+  reqs.forEach(r=>{ const k=r.asset_id||(r.item_name||'').trim().toLowerCase();
+    const nm=r.asset_id?(assetById[r.asset_id]?.name||r.item_name):r.item_name;
+    (rg[k]=rg[k]||{name:nm,n:0,wait:0,open:0}); rg[k].n++;
     const end=r.fulfilled_at?new Date(r.fulfilled_at):new Date(); rg[k].wait+=(end-new Date(r.created_at)); if(r.status==='open') rg[k].open++; });
   const mostReq=Object.values(rg).map(g=>({name:g.name,n:g.n,open:g.open,avg:g.n?Math.round(g.wait/g.n/86400000):0})).sort((a,b)=>b.n-a.n).slice(0,15);
 
@@ -1160,7 +1203,7 @@ function renderBilling(){
 }
 
 async function loadTeam(){
-  const { data, error } = await sb.rpc('list_account_members');
+  const { data, error } = await sb.rpc('list_account_members', { p_account_id:state.account.id });
   if(error) return ($('teamBody').innerHTML=`<p class="muted">${esc(error.message)}</p>`);
   const rows=data||[];
   $('seatCount').textContent=`${rows.length} / ${unlimited(limitOf('users'))?'∞':limitOf('users')}`;
