@@ -611,9 +611,12 @@ window.openItemForm = (id) => {
       tags:$('f_tags').value.split(',').map(t=>t.trim()).filter(Boolean),
       min_level:min, max_level:max,
       unit_cost:$('f_cost').value!==''?Number($('f_cost').value):null, photo_url, updated_at:new Date().toISOString() };
-    let error, newId=null;
-    if(it){ ({ error } = await sb.from('items').update(row).eq('id',it.id)); }
-    else { row.quantity=qty; const ins=await sb.from('items').insert(row).select('id').single(); error=ins.error; newId=ins.data?.id; }
+    let error, savedRow=null;
+    // Return the saved row so the list can update from the authoritative DB row
+    // directly — the new/edited item must show even if a later re-fetch is slow or fails.
+    if(it){ const upd=await sb.from('items').update(row).eq('id',it.id).select('*').single(); error=upd.error; savedRow=upd.data; }
+    else { row.quantity=qty; const ins=await sb.from('items').insert(row).select('*').single(); error=ins.error; savedRow=ins.data; }
+    const newId = savedRow?.id;
     if(error){ $('f_save').disabled=false; return toast(error.message.includes('duplicate')?`SKU "${row.sku}" already exists.`:error.message); }
     // Opening balance becomes the first ledger entry, so the audit log reconciles.
     if(!it && newId && qty>0){
@@ -622,7 +625,16 @@ window.openItemForm = (id) => {
         reason:'Opening balance', note:'Initial stock on item creation' });
     }
     $('f_save').disabled=false;
-    closeModal(); toast(it?'Item saved':'Item added'); await loadItems(); renderInventory();
+    closeModal(); toast(it?'Item saved':'Item added');
+    // Reflect the change immediately from the row the DB returned, so a new/edited
+    // item appears without depending on a second round-trip; then reconcile in the
+    // background so concurrent changes by others are still picked up.
+    if(savedRow){
+      const idx=state.items.findIndex(x=>x.id===savedRow.id);
+      if(idx>=0) state.items[idx]=savedRow; else state.items.push(savedRow);
+    }
+    renderInventory();
+    loadItems().then(renderInventory);
   };
 };
 
