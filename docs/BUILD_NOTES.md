@@ -41,10 +41,28 @@ project; **no code was copied** — Quantos is written from scratch.
 - **Hard constraints**: `inventory_transactions.reason` non-blank;
   `loss_events.category` + `note` non-blank.
 
-## Config the user must set
-1. `apps/index.html` → `SUPABASE_URL` + `SUPABASE_ANON_KEY` constants.
-2. Run the 4 migrations in the Supabase SQL editor (or `supabase db reset`).
-3. (Optional) Stripe env vars to switch billing from stub → live.
+## Live deployment (done)
+- Pushed to GitHub: **https://github.com/Haulbrook/Quantos** (public).
+- Frontend wired to Supabase project `egcdmmtqcrrpqszpiwgf` (URL + publishable
+  anon key set in `apps/index.html`; anon key is browser-safe under RLS).
+- All **6 migrations applied** to the live project (`0001`→`0006`); 10 tables,
+  RLS on all tenant tables, helper fns, onboarding + stock RPCs, storage bucket.
+- Security advisor: clean. `stripe_events` is RLS-enabled with no policies
+  (service-role-only by design → INFO, not a finding); bucket-listing resolved
+  (`0006`). Remaining warnings are `SECURITY DEFINER` RPCs that self-scope to
+  `auth.uid()` and reveal nothing the caller doesn't already know — left as-is
+  on purpose (touching their grants would break RLS for no security gain).
+- Smoke-tested live: anon REST reads return `[]` (RLS denies), onboarding RPC
+  rejects unauthenticated calls.
+
+### Remaining manual step
+- **Auth email confirmation:** Supabase confirms emails on signup by default. The
+  app handles that flow (it tells the user to confirm, then sign in). For
+  frictionless testing, toggle **Authentication → Sign In / Providers → Email →
+  Confirm email** off in the dashboard. (No API tool was available to change this
+  for you.)
+- **Stripe (optional):** add the `STRIPE_*` env vars to flip billing from stub →
+  live; until then checkout shows a friendly "not configured" notice.
 
 ## Deliberately out of scope
 QR codes, barcodes, TV display mode (excluded per spec). Email invites, finer
