@@ -9,3 +9,6 @@ dist/
 
 # local Claude settings
 .claude/settings.local.json
+
+# supabase CLI local cache
+supabase/.temp/
