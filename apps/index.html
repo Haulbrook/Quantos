@@ -365,7 +365,7 @@ window.setAuthTab = (t) => {
 
 // ---- modal ----
 function modal(html){ $('modal').innerHTML=html; $('modalBg').classList.add('show'); }
-window.closeModal = () => $('modalBg').classList.remove('show');
+window.closeModal = () => { $('modalBg').classList.remove('show'); $('modal').innerHTML=''; };
 $('modalBg').addEventListener('click', (e)=>{ if(e.target===$('modalBg')) closeModal(); });
 
 // ---- photo upload (Supabase Storage; degrades gracefully) ----
