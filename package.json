@@ -1,0 +1,18 @@
+{
+  "name": "quantos",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Quantos — asset inventory & checkout platform (Inventory Tracker, Asset Checkout, Reports)",
+  "type": "module",
+  "scripts": {
+    "dev": "netlify dev",
+    "db:reset": "supabase db reset"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.89.0",
+    "stripe": "^20.1.0"
+  },
+  "devDependencies": {
+    "supabase": "^2.0.0"
+  }
+}

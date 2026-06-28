@@ -1,0 +1,27 @@
+-- ============================================================================
+-- Quantos — local seed (optional)
+--
+-- Domain rows hang off an account, and accounts are bootstrapped through the
+-- create_account_for_current_user() RPC (which needs a real auth.users row), so
+-- there is nothing safe to seed before you've signed up once.
+--
+-- To seed demo data locally:
+--   1. Run the app, create an org, and grab your account id:
+--        select id, name from accounts;
+--   2. Set it below and run this file with:  supabase db execute -f supabase/seed.sql
+-- ============================================================================
+
+-- \set acct '00000000-0000-0000-0000-000000000000'
+--
+-- insert into locations (account_id, name) values
+--   (:'acct', 'Warehouse A'), (:'acct', 'Job Site Trailer'), (:'acct', 'Front Office');
+--
+-- insert into items (account_id, name, sku, category, quantity, min_level, max_level, unit_cost) values
+--   (:'acct', 'Nitrile Gloves (box)', 'GLV-100', 'Consumables', 4,  5, 25, 12.50),
+--   (:'acct', 'AA Batteries (pack)',  'BAT-AA',  'Consumables', 30, 10, 50, 6.00),
+--   (:'acct', 'Safety Glasses',       'PPE-SG',  'PPE',         18, 8, 40, 3.25);
+--
+-- insert into assets (account_id, name, asset_tag, category, condition, value) values
+--   (:'acct', 'DeWalt Impact Driver', 'TOOL-001', 'Power Tools', 'good', 189.00),
+--   (:'acct', 'Laser Level',          'TOOL-002', 'Survey',      'new',  329.00),
+--   (:'acct', 'Generator 3500W',      'EQ-014',   'Equipment',   'fair', 540.00);

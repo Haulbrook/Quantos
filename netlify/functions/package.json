@@ -1,0 +1,4 @@
+{
+  "comment": "Scopes this directory to CommonJS so require()/exports.handler work natively, even though the repo root is type:module for the ESM frontend.",
+  "type": "commonjs"
+}

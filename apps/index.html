@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<title>Quantos — Asset Inventory &amp; Checkout</title>
+<meta name="description" content="Quantos is a fast, simple asset inventory and checkout platform: min/max auto-reorder, possession ledger, request tickets, loss tracking, and reports." />
+<style>
+  :root {
+    --bg:#0f1117; --panel:#1a1d27; --panel2:#222633; --line:#2c3142;
+    --txt:#eef0f6; --muted:#8b91a7; --accent:#9a88f0; --accent-ink:#11121a;
+    --good:#3ddc97; --warn:#f5b14c; --bad:#f06b6b; --blue:#5aa9f0;
+    --radius:12px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { font-family:'Inter',-apple-system,system-ui,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--txt); -webkit-font-smoothing:antialiased; }
+  a { color: var(--accent); }
+  .mono { font-family:'Space Mono', monospace; }
+  .muted { color: var(--muted); }
+  .hidden { display: none !important; }
+  .nowrap { white-space: nowrap; }
+  .right { text-align: right; }
+
+  /* Header / nav */
+  header { background:var(--panel); border-bottom:1px solid var(--line); padding:12px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; position:sticky; top:0; z-index:30; }
+  .brand { display:flex; align-items:center; gap:10px; }
+  .brand .name { font-family:'Sora',sans-serif; font-weight:800; font-size:21px; letter-spacing:-.5px; }
+  .brand .name b { color:var(--accent); }
+  nav.tabs { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.tabs button { background:transparent; color:var(--muted); border:1px solid transparent; border-radius:10px; padding:9px 14px; font:inherit; font-weight:600; cursor:pointer; }
+  nav.tabs button:hover { color:var(--txt); }
+  nav.tabs button.active { background:var(--panel2); color:var(--txt); border-color:var(--line); }
+  .hgroup { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+
+  main { max-width:1080px; margin:0 auto; padding:18px 16px 60px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-bottom:16px; }
+  .card h2 { font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin:0 0 12px; font-weight:700; }
+  .section-head { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+  .section-head h1 { font-family:'Sora',sans-serif; font-size:22px; margin:0; font-weight:700; }
+
+  label { display:block; font-size:12px; color:var(--muted); margin:10px 0 4px; font-weight:600; }
+  input, select, textarea, button { font:inherit; }
+  input, select, textarea { width:100%; background:var(--panel2); border:1px solid var(--line); color:var(--txt); border-radius:9px; padding:10px 11px; }
+  input:focus, select:focus, textarea:focus { outline:none; border-color:var(--accent); }
+  textarea { resize:vertical; min-height:64px; }
+  input::placeholder, textarea::placeholder { color:#5a6075; }
+
+  .btn { border:none; border-radius:10px; padding:11px 15px; font-weight:700; cursor:pointer; color:var(--txt); background:var(--panel2); border:1px solid var(--line); }
+  .btn:hover { border-color:var(--accent); }
+  .btn-primary { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+  .btn-primary:hover { filter:brightness(1.08); }
+  .btn-ghost { background:transparent; color:var(--muted); }
+  .btn-bad { background:transparent; color:var(--bad); border-color:var(--bad); }
+  .btn-sm { padding:6px 11px; font-size:13px; border-radius:8px; }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+
+  .row { display:flex; gap:10px; flex-wrap:wrap; } .row > * { flex:1; min-width:130px; }
+  .grid { display:grid; gap:12px; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+  .stat { background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:14px; }
+  .stat .n { font-family:'Sora',sans-serif; font-size:26px; font-weight:800; }
+  .stat .l { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.5px; margin-top:2px; }
+  .stat.good .n { color:var(--good); } .stat.warn .n { color:var(--warn); } .stat.bad .n { color:var(--bad); } .stat.accent .n { color:var(--accent); }
+
+  .badge { display:inline-block; padding:3px 9px; border-radius:20px; font-size:11.5px; font-weight:700; white-space:nowrap; }
+  .b-accent { background:var(--accent); color:var(--accent-ink); }
+  .b-muted { background:var(--panel2); color:var(--muted); border:1px solid var(--line); }
+  .b-good { background:rgba(61,220,151,.14); color:var(--good); }
+  .b-warn { background:rgba(245,177,76,.15); color:var(--warn); }
+  .b-bad { background:rgba(240,107,107,.15); color:var(--bad); }
+  .b-blue { background:rgba(90,169,240,.15); color:var(--blue); }
+
+  .table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:9px 10px; border-bottom:1px solid var(--line); font-size:14px; vertical-align:middle; }
+  th { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.5px; white-space:nowrap; }
+  tbody tr:hover { background:rgba(255,255,255,.02); }
+  .empty { color:var(--muted); padding:18px 4px; text-align:center; }
+
+  .pager { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:12px; flex-wrap:wrap; }
+  .pager .pginfo { color:var(--muted); font-size:13px; }
+
+  .subtabs { display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
+  .subtabs button { flex:0 0 auto; padding:9px 14px; border-radius:9px; border:1px solid var(--line); background:var(--panel); color:var(--muted); cursor:pointer; font-weight:700; }
+  .subtabs button.active { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+
+  .qty { display:inline-flex; align-items:center; gap:8px; }
+  .qty .v { font-family:'Space Mono',monospace; font-weight:700; min-width:34px; text-align:right; }
+  .iconbtn { width:30px; height:30px; padding:0; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; font-size:17px; line-height:1; }
+  .thumb { width:34px; height:34px; border-radius:7px; object-fit:cover; background:var(--panel2); border:1px solid var(--line); }
+  .alertbar { background:rgba(245,177,76,.1); border:1px solid rgba(245,177,76,.4); color:var(--warn); border-radius:10px; padding:11px 13px; margin-bottom:14px; font-size:14px; font-weight:600; }
+  .alertbar.bad { background:rgba(240,107,107,.1); border-color:rgba(240,107,107,.4); color:var(--bad); }
+
+  /* Modal */
+  .modal-bg { position:fixed; inset:0; background:rgba(8,9,13,.66); display:none; align-items:flex-start; justify-content:center; z-index:60; padding:24px 14px; overflow-y:auto; }
+  .modal-bg.show { display:flex; }
+  .modal { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px; width:100%; max-width:560px; margin:auto 0; }
+  .modal h3 { font-family:'Sora',sans-serif; margin:0 0 4px; font-size:19px; }
+  .modal .sub { color:var(--muted); font-size:13px; margin:0 0 14px; }
+  .modal .actions { display:flex; gap:10px; margin-top:18px; }
+  .modal .actions .btn { flex:1; }
+  .req { color:var(--bad); }
+
+  /* Auth */
+  #authView { max-width:400px; margin:56px auto; }
+  #authView .tabs { display:flex; gap:8px; margin-bottom:14px; }
+  #authView .tabs button { flex:1; padding:10px; border-radius:9px; border:1px solid var(--line); background:var(--panel2); color:var(--muted); cursor:pointer; font-weight:700; }
+  #authView .tabs button.active { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+
+  .toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--panel2); border:1px solid var(--line); padding:12px 18px; border-radius:10px; display:none; z-index:90; max-width:92%; text-align:center; box-shadow:0 8px 30px rgba(0,0,0,.4); }
+  .toast.show { display:block; }
+  .pill-row { display:flex; gap:6px; flex-wrap:wrap; }
+  .help { font-size:12px; color:var(--muted); margin-top:6px; }
+
+  /* Print / PDF */
+  #printArea { display:none; }
+  @media print {
+    body.printing > *:not(#printArea) { display:none !important; }
+    body.printing { background:#fff; color:#000; }
+    #printArea { display:block; color:#000; padding:10px 0; }
+    #printArea h1 { font-size:20px; margin:0 0 4px; }
+    #printArea h2 { font-size:14px; margin:18px 0 6px; }
+    #printArea table { width:100%; border-collapse:collapse; }
+    #printArea th, #printArea td { border:1px solid #ccc; padding:5px 7px; font-size:12px; text-align:left; }
+    #printArea .muted { color:#555; }
+  }
+
+  @media (max-width:640px){
+    .section-head h1 { font-size:19px; }
+    nav.tabs button { padding:8px 11px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <svg width="30" height="30" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+      <path d="M24 4 6 13v22l18 9 18-9V13L24 4Z" stroke="#2c3142" stroke-width="2.5" fill="#1a1d27"/>
+      <path d="M24 4 6 13l18 9 18-9L24 4Z" fill="#9a88f0" opacity="0.92"/>
+      <path d="M24 22v22M6 13v22l18 9M42 13v22l-18 9" stroke="#9a88f0" stroke-width="2.3" stroke-linejoin="round" fill="none"/>
+      <circle cx="24" cy="22" r="2.6" fill="#eef0f6"/>
+    </svg>
+    <span class="name">Quan<b>tos</b></span>
+  </div>
+  <nav class="tabs hidden" id="mainNav">
+    <button data-view="inventory" class="active">Inventory</button>
+    <button data-view="checkout">Checkout</button>
+    <button data-view="reports">Reports</button>
+    <button data-view="settings">Settings</button>
+  </nav>
+  <div class="hgroup" id="acctHeader"></div>
+</header>
+
+<!-- AUTH -->
+<div id="authView" class="card hidden">
+  <div class="tabs">
+    <button id="tabSignin" class="active" onclick="setAuthTab('signin')">Sign in</button>
+    <button id="tabSignup" onclick="setAuthTab('signup')">Create org</button>
+  </div>
+  <div id="signupName" class="hidden"><label>Organization name</label><input id="orgName" placeholder="e.g., North Valley Supply" /></div>
+  <label>Email</label><input id="email" type="email" autocomplete="email" />
+  <label>Password</label><input id="password" type="password" autocomplete="current-password" />
+  <div style="height:14px"></div>
+  <button id="authBtn" class="btn btn-primary" style="width:100%">Sign in</button>
+  <p id="authMsg" class="muted" style="font-size:13px;margin-top:12px"></p>
+</div>
+
+<!-- APP -->
+<main id="appView" class="hidden">
+  <!-- No org linked -->
+  <div id="noAccount" class="card hidden">
+    <h2>No organization linked</h2>
+    <p class="muted">Your login isn't attached to an organization. Create one below, or have an owner add you.</p>
+    <label>Organization name</label><input id="naOrgName" placeholder="e.g., North Valley Supply" />
+    <div style="height:10px"></div>
+    <div class="row">
+      <button id="naCreateBtn" class="btn btn-primary">Create organization</button>
+      <button class="btn btn-ghost" onclick="signOut()">Sign out</button>
+    </div>
+  </div>
+
+  <!-- ============ INVENTORY ============ -->
+  <section id="view-inventory" class="view hidden">
+    <div class="section-head">
+      <h1>Inventory</h1>
+      <div class="hgroup">
+        <button class="btn btn-sm" onclick="openTxnLog()">Transaction log</button>
+        <button class="btn btn-sm" onclick="exportItemsCSV()">Export CSV</button>
+        <button class="btn btn-sm" onclick="printInventory()">PDF</button>
+        <button class="btn btn-primary btn-sm" onclick="openItemForm()">+ Add item</button>
+      </div>
+    </div>
+
+    <div id="reorderBanner"></div>
+
+    <div class="card">
+      <div class="row">
+        <div style="flex:2"><label>Search</label><input id="invSearch" placeholder="Name, SKU, tag…" /></div>
+        <div><label>Category</label><select id="invCat"><option value="">All categories</option></select></div>
+        <div><label>Location</label><select id="invLoc"><option value="">All locations</option></select></div>
+        <div style="flex:0 0 auto;display:flex;align-items:flex-end;padding-bottom:1px">
+          <label style="display:flex;align-items:center;gap:7px;margin:0;cursor:pointer;font-size:13px;color:var(--txt)">
+            <input type="checkbox" id="invLow" style="width:auto" /> Reorder only
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th></th><th>Item</th><th>Category</th><th>Location</th>
+            <th class="right">On hand</th><th class="right">Min / Max</th><th class="right">Qty</th><th></th>
+          </tr></thead>
+          <tbody id="invBody"></tbody>
+        </table>
+      </div>
+      <div class="pager" id="invPager"></div>
+    </div>
+  </section>
+
+  <!-- ============ CHECKOUT ============ -->
+  <section id="view-checkout" class="view hidden">
+    <div class="section-head">
+      <h1>Asset Checkout</h1>
+      <div class="hgroup" id="checkoutActions"></div>
+    </div>
+
+    <div class="subtabs" id="coSubtabs">
+      <button data-co="ledger" class="active">Possession ledger</button>
+      <button data-co="assets">Assets</button>
+      <button data-co="requests">Requests</button>
+      <button data-co="loss">Loss &amp; shrinkage</button>
+    </div>
+
+    <div id="co-ledger" class="co-pane"></div>
+    <div id="co-assets" class="co-pane hidden"></div>
+    <div id="co-requests" class="co-pane hidden"></div>
+    <div id="co-loss" class="co-pane hidden"></div>
+  </section>
+
+  <!-- ============ REPORTS ============ -->
+  <section id="view-reports" class="view hidden">
+    <div class="section-head">
+      <h1>Reports</h1>
+      <div class="hgroup">
+        <button class="btn btn-sm" onclick="generateMonthly()">Monthly report</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <div><label>From</label><input id="rpFrom" type="date" /></div>
+        <div><label>To</label><input id="rpTo" type="date" /></div>
+        <div style="flex:0 0 auto;display:flex;align-items:flex-end;gap:8px">
+          <button class="btn btn-primary btn-sm" onclick="runReports()">Run</button>
+          <button class="btn btn-sm" onclick="presetRange(30)">30d</button>
+          <button class="btn btn-sm" onclick="presetRange(90)">90d</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="reportsBody"></div>
+  </section>
+
+  <!-- ============ SETTINGS ============ -->
+  <section id="view-settings" class="view hidden">
+    <div class="section-head"><h1>Settings</h1></div>
+
+    <div class="card">
+      <h2>Locations</h2>
+      <div id="locBody"></div>
+      <div class="row" style="margin-top:12px">
+        <div style="flex:2"><input id="newLocName" placeholder="New location name" /></div>
+        <div style="flex:0 0 auto"><button class="btn btn-primary" onclick="addLocation()">Add location</button></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Plan &amp; billing</h2>
+      <div id="billingBody"></div>
+    </div>
+
+    <div class="card">
+      <h2>Team <span id="seatCount" class="badge b-muted"></span></h2>
+      <div id="teamBody"></div>
+      <p class="help">Email invites arrive with the hosted launch. For now, a teammate signs up, then an owner/manager sets their role here.</p>
+    </div>
+  </section>
+</main>
+
+<!-- Modal + toast + print -->
+<div class="modal-bg" id="modalBg"><div class="modal" id="modal"></div></div>
+<div id="toast" class="toast"></div>
+<div id="printArea"></div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.108.2';
+
+// ============================================================================
+// CONFIG — set these to your Supabase project. The anon key is safe in the
+// browser; RLS enforces tenancy. (Create the project, run the SQL in
+// supabase/migrations, then paste the values here.)
+// ============================================================================
+const SUPABASE_URL = 'https://YOUR-PROJECT.supabase.co';
+const SUPABASE_ANON_KEY = 'YOUR-ANON-KEY';
+const PHOTO_BUCKET = 'quantos-photos';
+
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+sb.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') location.reload(); });
+
+// ---- constants ----
+const ROLES = ['owner','manager','staff'];
+const CONDITIONS = ['new','good','fair','poor','damaged','retired'];
+const LOSS_CATS = [
+  ['lost','Lost'], ['broken','Broken'], ['misuse','Misuse'],
+  ['stolen','Stolen'], ['wear_and_tear','Wear & tear'], ['other','Other'],
+];
+const URGENCY = [['low','Low'],['normal','Normal'],['high','High'],['critical','Critical']];
+const ADJUST_REASONS = ['Received shipment','Used / consumed','Damaged / loss','Cycle count adjustment','Returned to stock','Transfer','Other'];
+const PLANS = {
+  starter:    { label:'Starter',    monthly:49,  annual:490,  limits:{items:200,  assets:50,  users:5} },
+  pro:        { label:'Pro',        monthly:99,  annual:990,  limits:{items:1000, assets:250, users:25} },
+  enterprise: { label:'Enterprise', monthly:199, annual:1990, limits:{items:1e6,  assets:1e6, users:1e6} },
+};
+const INV_PAGE_SIZE = 20;
+
+// ---- state ----
+const state = {
+  account:null, role:null, userId:null, userEmail:null,
+  locations:[], items:[], assets:[],
+  view:'inventory', coTab:'ledger',
+  invPage:1,
+};
+let authTab = 'signin';
+
+// ---- helpers ----
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const toast = (m) => { const t=$('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),3600); };
+const money = (n) => (n==null||n==='') ? '—' : '$'+Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+const money0 = (n) => (n==null) ? '$0' : '$'+Math.round(Number(n)).toLocaleString();
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}) : '—';
+const todayISO = () => new Date().toISOString().slice(0,10);
+const daysAgoISO = (n) => new Date(Date.now()-n*86400000).toISOString().slice(0,10);
+const limitOf = (kind) => (PLANS[state.account?.plan]||PLANS.starter).limits[kind];
+const unlimited = (n) => n>=1e6;
+const locName = (id) => state.locations.find(l=>l.id===id)?.name || '—';
+const canManage = () => state.role==='owner' || state.role==='manager';
+
+window.setAuthTab = (t) => {
+  authTab=t;
+  $('tabSignin').classList.toggle('active', t==='signin');
+  $('tabSignup').classList.toggle('active', t==='signup');
+  $('signupName').classList.toggle('hidden', t!=='signup');
+  $('authBtn').textContent = t==='signup' ? 'Create organization' : 'Sign in';
+  $('authMsg').textContent='';
+};
+
+// ---- modal ----
+function modal(html){ $('modal').innerHTML=html; $('modalBg').classList.add('show'); }
+window.closeModal = () => $('modalBg').classList.remove('show');
+$('modalBg').addEventListener('click', (e)=>{ if(e.target===$('modalBg')) closeModal(); });
+
+// ---- photo upload (Supabase Storage; degrades gracefully) ----
+async function uploadPhoto(file, folder){
+  if(!file) return null;
+  const safe = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+  const path = `${state.account.id}/${folder}/${Date.now()}-${safe}`;
+  const { error } = await sb.storage.from(PHOTO_BUCKET).upload(path, file, { upsert:false });
+  if(error){ toast('Photo upload failed: '+error.message); return null; }
+  return sb.storage.from(PHOTO_BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
+// ============================================================================
+// AUTH / BOOT
+// ============================================================================
+async function init(){
+  const { data:{ session } } = await sb.auth.getSession();
+  if(session) await onSignedIn(); else $('authView').classList.remove('hidden');
+}
+
+$('authBtn').onclick = async () => {
+  const email=$('email').value.trim(), password=$('password').value;
+  if(!email || !password) return ($('authMsg').textContent='Enter email and password.');
+  if(authTab==='signup'){
+    const name=$('orgName').value.trim();
+    if(!name) return ($('authMsg').textContent='Enter an organization name.');
+    const { data, error } = await sb.auth.signUp({ email, password });
+    if(error) return ($('authMsg').textContent=error.message);
+    if(!data.session){ localStorage.setItem('qx_pending_org', name); $('authMsg').textContent='Account created — check your email to confirm, then sign in.'; setAuthTab('signin'); return; }
+    const { error:rpcErr } = await sb.rpc('create_account_for_current_user', { p_name:name });
+    if(rpcErr) return ($('authMsg').textContent=rpcErr.message);
+    await onSignedIn();
+  } else {
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if(error) return ($('authMsg').textContent=error.message);
+    await onSignedIn();
+  }
+};
+window.signOut = async () => { await sb.auth.signOut(); location.reload(); };
+
+$('naCreateBtn').onclick = async () => {
+  const p_name=$('naOrgName').value.trim();
+  if(!p_name) return toast('Enter an organization name.');
+  const { error } = await sb.rpc('create_account_for_current_user', { p_name });
+  if(error) return toast(error.message);
+  location.reload();
+};
+
+async function onSignedIn(){
+  $('authView').classList.add('hidden'); $('appView').classList.remove('hidden');
+  const { data:{ user } } = await sb.auth.getUser();
+  state.userId=user?.id; state.userEmail=user?.email;
+
+  let { data:mem, error:memErr } = await sb.from('memberships').select('account_id, role').limit(1).maybeSingle();
+  if(memErr) return toast("Couldn't load your account — check connection and reload.");
+  if(!mem){
+    const pending = localStorage.getItem('qx_pending_org');
+    if(pending){
+      const { error:rpcErr } = await sb.rpc('create_account_for_current_user', { p_name:pending });
+      localStorage.removeItem('qx_pending_org');
+      if(rpcErr){ $('noAccount').classList.remove('hidden'); renderHeader(); return toast(rpcErr.message); }
+      ({ data:mem } = await sb.from('memberships').select('account_id, role').limit(1).maybeSingle());
+    }
+    if(!mem){ $('noAccount').classList.remove('hidden'); renderHeader(); return; }
+  }
+  state.role=mem.role;
+  const { data:acct, error:acctErr } = await sb.from('accounts')
+    .select('id, name, plan, status, item_limit, asset_limit, user_limit, trial_ends_at, stripe_customer_id')
+    .eq('id', mem.account_id).single();
+  if(acctErr || !acct) return toast("Couldn't load your organization — reload.");
+  state.account=acct;
+
+  $('mainNav').classList.remove('hidden');
+  renderHeader();
+  await Promise.all([loadLocations(), loadItems(), loadAssets()]);
+  presetRange(30);
+  switchView('inventory');
+}
+
+function renderHeader(){
+  if(!state.account){ $('acctHeader').innerHTML=`<button class="btn btn-ghost btn-sm" onclick="signOut()">Sign out</button>`; return; }
+  let trial='';
+  if(state.account.status==='trialing' && state.account.trial_ends_at){
+    const days=Math.max(0,Math.ceil((new Date(state.account.trial_ends_at)-Date.now())/86400000));
+    trial=`<span class="badge b-muted">Trial · ${days}d</span>`;
+  }
+  $('acctHeader').innerHTML=`<strong style="font-size:14px">${esc(state.account.name)}</strong>
+    <span class="badge b-accent">${(PLANS[state.account.plan]||{}).label||state.account.plan}</span> ${trial}
+    <button class="btn btn-ghost btn-sm" onclick="signOut()">Sign out</button>`;
+}
+
+// ---- nav ----
+document.getElementById('mainNav').addEventListener('click', (e)=>{
+  const b=e.target.closest('button[data-view]'); if(b) switchView(b.dataset.view);
+});
+function switchView(v){
+  state.view=v;
+  document.querySelectorAll('#mainNav button').forEach(b=>b.classList.toggle('active', b.dataset.view===v));
+  document.querySelectorAll('.view').forEach(s=>s.classList.add('hidden'));
+  $('view-'+v).classList.remove('hidden');
+  if(v==='inventory') renderInventory();
+  if(v==='checkout') renderCheckout();
+  if(v==='reports') runReports();
+  if(v==='settings') renderSettings();
+}
+window.switchView = switchView;
+
+// ============================================================================
+// DATA LOADERS
+// ============================================================================
+async function loadLocations(){
+  const { data, error } = await sb.from('locations').select('*').order('name');
+  if(error) return toast(error.message);
+  state.locations=data||[];
+}
+async function loadItems(){
+  const { data, error } = await sb.from('items').select('*').order('name');
+  if(error) return toast(error.message);
+  state.items=data||[];
+}
+async function loadAssets(){
+  const { data, error } = await sb.from('assets').select('*').order('name');
+  if(error) return toast(error.message);
+  state.assets=data||[];
+}
+
+// ============================================================================
+// MODULE 1 — INVENTORY
+// ============================================================================
+function reorderList(){
+  return state.items.filter(i => Number(i.quantity) <= Number(i.min_level) && (Number(i.max_level)>0 || Number(i.min_level)>0));
+}
+function reorderQty(i){ return Math.max(Number(i.max_level||0) - Number(i.quantity||0), 0); }
+
+function renderInventory(){
+  // category + location filter options
+  const cats=[...new Set(state.items.map(i=>i.category).filter(Boolean))].sort();
+  $('invCat').innerHTML=`<option value="">All categories</option>`+cats.map(c=>`<option>${esc(c)}</option>`).join('');
+  $('invLoc').innerHTML=`<option value="">All locations</option>`+state.locations.map(l=>`<option value="${l.id}">${esc(l.name)}</option>`).join('');
+
+  const ro=reorderList();
+  $('reorderBanner').innerHTML = ro.length
+    ? `<div class="alertbar">⚠ ${ro.length} item${ro.length>1?'s':''} at or below reorder point — order ${ro.reduce((s,i)=>s+reorderQty(i),0)} unit(s) total to restock to max.</div>`
+    : '';
+  renderItems();
+}
+
+function filteredItems(){
+  const q=($('invSearch').value||'').toLowerCase().trim();
+  const cat=$('invCat').value, loc=$('invLoc').value, low=$('invLow').checked;
+  return state.items.filter(i=>{
+    if(cat && i.category!==cat) return false;
+    if(loc && i.location_id!==loc) return false;
+    if(low && !(Number(i.quantity)<=Number(i.min_level))) return false;
+    if(q){
+      const hay=`${i.name||''} ${i.sku||''} ${(i.tags||[]).join(' ')} ${i.category||''}`.toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function renderItems(){
+  const list=filteredItems();
+  const pages=Math.max(1, Math.ceil(list.length/INV_PAGE_SIZE));
+  if(state.invPage>pages) state.invPage=pages;
+  const start=(state.invPage-1)*INV_PAGE_SIZE;
+  const page=list.slice(start, start+INV_PAGE_SIZE);
+
+  $('invBody').innerHTML = page.length ? page.map(i=>{
+    const low=Number(i.quantity)<=Number(i.min_level);
+    const ro=reorderQty(i);
+    const photo=i.photo_url?`<img class="thumb" src="${esc(i.photo_url)}" alt="">`:`<div class="thumb"></div>`;
+    return `<tr>
+      <td>${photo}</td>
+      <td><strong>${esc(i.name)}</strong>${i.sku?` <span class="muted mono" style="font-size:12px">${esc(i.sku)}</span>`:''}
+        ${(i.tags||[]).length?`<div class="pill-row" style="margin-top:4px">${i.tags.map(t=>`<span class="badge b-muted">${esc(t)}</span>`).join('')}</div>`:''}</td>
+      <td class="muted">${esc(i.category||'—')}</td>
+      <td class="muted">${esc(locName(i.location_id))}</td>
+      <td class="right">${low?`<span class="badge b-warn">${i.quantity} · order ${ro}</span>`:`<span class="mono">${i.quantity}</span>`}</td>
+      <td class="right muted mono">${i.min_level} / ${i.max_level}</td>
+      <td class="right"><div class="qty">
+        <button class="btn iconbtn" data-dec="${i.id}">−</button>
+        <button class="btn iconbtn btn-primary" data-inc="${i.id}">+</button>
+      </div></td>
+      <td class="right nowrap">
+        <button class="btn btn-sm" data-edit-item="${i.id}">Edit</button>
+        <button class="btn btn-sm" data-hist-item="${i.id}">Log</button>
+      </td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="8" class="empty">No items match. ${state.items.length?'Adjust filters':'Add your first item'}.</td></tr>`;
+
+  $('invPager').innerHTML = `<span class="pginfo">${list.length} item(s) · page ${state.invPage}/${pages}</span>
+    <span class="hgroup">
+      <button class="btn btn-sm" ${state.invPage<=1?'disabled':''} data-pg="prev">Prev</button>
+      <button class="btn btn-sm" ${state.invPage>=pages?'disabled':''} data-pg="next">Next</button>
+    </span>`;
+}
+
+['invSearch','invCat','invLoc','invLow'].forEach(id=>{
+  document.addEventListener('input', (e)=>{ if(e.target.id===id){ state.invPage=1; renderItems(); } });
+});
+
+// ---- Add / edit item ----
+window.openItemForm = (id) => {
+  const it = id ? state.items.find(x=>x.id===id) : null;
+  if(!it && !unlimited(limitOf('items')) && state.items.length>=limitOf('items'))
+    return toast(`Item limit reached for the ${PLANS[state.account.plan].label} plan (${limitOf('items')}). Upgrade to add more.`);
+  const locOpts=state.locations.map(l=>`<option value="${l.id}" ${it&&it.location_id===l.id?'selected':''}>${esc(l.name)}</option>`).join('');
+  modal(`<h3>${it?'Edit item':'Add item'}</h3><p class="sub">Set stock and the min/max levels that drive auto-reorder alerts.</p>
+    <div class="row"><div style="flex:2"><label>Name <span class="req">*</span></label><input id="f_name" value="${esc(it?.name||'')}"></div>
+      <div><label>SKU</label><input id="f_sku" value="${esc(it?.sku||'')}" placeholder="optional"></div></div>
+    <div class="row"><div><label>Category</label><input id="f_cat" value="${esc(it?.category||'')}" placeholder="e.g., Consumables"></div>
+      <div><label>Location</label><select id="f_loc"><option value="">—</option>${locOpts}</select></div></div>
+    <label>Tags <span class="muted">(comma-separated)</span></label><input id="f_tags" value="${esc((it?.tags||[]).join(', '))}" placeholder="ppe, gloves">
+    <div class="row"><div><label>On hand</label><input id="f_qty" type="number" min="0" step="any" value="${it?.quantity??0}"></div>
+      <div><label>Min level</label><input id="f_min" type="number" min="0" step="any" value="${it?.min_level??0}"></div>
+      <div><label>Max level</label><input id="f_max" type="number" min="0" step="any" value="${it?.max_level??0}"></div>
+      <div><label>Unit cost</label><input id="f_cost" type="number" min="0" step="any" value="${it?.unit_cost??''}"></div></div>
+    <label>Photo</label><input id="f_photo" type="file" accept="image/*">
+    ${it?.photo_url?`<div class="help">Current photo kept unless you choose a new one.</div>`:''}
+    <div class="actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="f_save">${it?'Save':'Add item'}</button></div>`);
+  $('f_save').onclick = async () => {
+    const name=$('f_name').value.trim();
+    if(!name) return toast('Name is required.');
+    const min=Number($('f_min').value||0), max=Number($('f_max').value||0);
+    if(max>0 && max<min) return toast('Max must be ≥ min.');
+    $('f_save').disabled=true;
+    let photo_url=it?.photo_url||null;
+    const file=$('f_photo').files?.[0];
+    if(file){ const url=await uploadPhoto(file,'items'); if(url) photo_url=url; }
+    const row={ account_id:state.account.id, name, sku:$('f_sku').value.trim()||null,
+      category:$('f_cat').value.trim()||null, location_id:$('f_loc').value||null,
+      tags:$('f_tags').value.split(',').map(t=>t.trim()).filter(Boolean),
+      quantity:Number($('f_qty').value||0), min_level:min, max_level:max,
+      unit_cost:$('f_cost').value!==''?Number($('f_cost').value):null, photo_url, updated_at:new Date().toISOString() };
+    const { error } = it ? await sb.from('items').update(row).eq('id',it.id)
+                          : await sb.from('items').insert(row);
+    $('f_save').disabled=false;
+    if(error) return toast(error.message.includes('duplicate')?`SKU "${row.sku}" already exists.`:error.message);
+    closeModal(); toast(it?'Item saved':'Item added'); await loadItems(); renderInventory();
+  };
+};
+
+// ---- adjust quantity (reason REQUIRED) ----
+function openAdjust(id, dir){
+  const it=state.items.find(x=>x.id===id); if(!it) return;
+  const reasonOpts=ADJUST_REASONS.map(r=>`<option>${r}</option>`).join('');
+  modal(`<h3>${dir>0?'Add stock':'Remove stock'} — ${esc(it.name)}</h3>
+    <p class="sub">On hand: <strong>${it.quantity}</strong>. A reason is required and is written to the audit log.</p>
+    <div class="row"><div><label>Quantity <span class="req">*</span></label><input id="a_qty" type="number" min="1" step="any" value="1"></div>
+      <div style="flex:2"><label>Reason <span class="req">*</span></label><select id="a_reason">${reasonOpts}</select></div></div>
+    <div id="a_otherWrap" class="hidden"><label>Specify reason <span class="req">*</span></label><input id="a_other" placeholder="Reason"></div>
+    <label>Note</label><textarea id="a_note" placeholder="Optional detail"></textarea>
+    <div class="actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="a_save">${dir>0?'Add':'Remove'}</button></div>`);
+  $('a_reason').onchange = () => $('a_otherWrap').classList.toggle('hidden', $('a_reason').value!=='Other');
+  $('a_save').onclick = async () => {
+    const amt=Number($('a_qty').value||0);
+    if(!amt || amt<=0) return toast('Enter a quantity greater than 0.');
+    let reason=$('a_reason').value;
+    if(reason==='Other') reason=$('a_other').value.trim();
+    if(!reason) return toast('Reason is required.');
+    const delta=dir>0?amt:-amt;
+    const qty_after=Number(it.quantity)+delta;
+    if(qty_after<0) return toast(`Only ${it.quantity} on hand — can't remove ${amt}.`);
+    $('a_save').disabled=true;
+    const { error:upErr } = await sb.from('items').update({ quantity:qty_after, updated_at:new Date().toISOString() }).eq('id',it.id);
+    if(upErr){ $('a_save').disabled=false; return toast(upErr.message); }
+    const { error:txErr } = await sb.from('inventory_transactions').insert({
+      account_id:state.account.id, item_id:it.id, user_id:state.userId, actor_name:state.userEmail,
+      delta, qty_after, reason, note:$('a_note').value.trim()||null });
+    if(txErr) toast('Saved, but log failed: '+txErr.message);
+    closeModal(); toast(`${dir>0?'Added':'Removed'} ${amt} — ${reason}`); await loadItems(); renderInventory();
+  };
+}
+
+// ---- transaction log ----
+window.openTxnLog = async (itemId) => {
+  const it = itemId ? state.items.find(x=>x.id===itemId) : null;
+  modal(`<h3>Transaction log${it?` — ${esc(it.name)}`:''}</h3><p class="sub">Every quantity change with its required reason.</p>
+    <div id="txnList" class="muted">Loading…</div>
+    <div class="actions"><button class="btn btn-primary" onclick="closeModal()">Close</button></div>`);
+  let q=sb.from('inventory_transactions').select('*').order('created_at',{ascending:false}).limit(200);
+  if(itemId) q=q.eq('item_id',itemId);
+  const { data, error } = await q;
+  if(error) return ($('txnList').textContent=error.message);
+  const nameById=Object.fromEntries(state.items.map(i=>[i.id,i.name]));
+  $('txnList').innerHTML = (data&&data.length) ? `<div class="table-wrap"><table><thead><tr><th>When</th>${it?'':'<th>Item</th>'}<th>Change</th><th>After</th><th>Reason</th><th>By</th></tr></thead><tbody>${
+    data.map(t=>`<tr><td class="nowrap muted">${fmtDate(t.created_at)}</td>${it?'':`<td>${esc(nameById[t.item_id]||'—')}</td>`}
+      <td class="${t.delta>=0?'':''}"><span class="badge ${t.delta>=0?'b-good':'b-bad'}">${t.delta>=0?'+':''}${t.delta}</span></td>
+      <td class="mono">${t.qty_after}</td><td>${esc(t.reason)}${t.note?`<div class="help">${esc(t.note)}</div>`:''}</td>
+      <td class="muted" style="font-size:12px">${esc(t.actor_name||'—')}</td></tr>`).join('')
+  }</tbody></table></div>` : `<p class="empty">No transactions yet.</p>`;
+};
+
+// ============================================================================
+// MODULE 2 — CHECKOUT
+// ============================================================================
+function renderCheckout(){
+  const canAddAsset = unlimited(limitOf('assets')) || state.assets.length<limitOf('assets');
+  $('checkoutActions').innerHTML=`
+    <button class="btn btn-sm" onclick="openRequestForm()">Request asset</button>
+    <button class="btn btn-sm" onclick="openCheckoutForm()">Check out</button>
+    <button class="btn btn-primary btn-sm" onclick="openAssetForm()">+ Add asset</button>`;
+  showCoTab(state.coTab);
+}
+$('coSubtabs').addEventListener('click',(e)=>{ const b=e.target.closest('button[data-co]'); if(b) showCoTab(b.dataset.co); });
+function showCoTab(t){
+  state.coTab=t;
+  document.querySelectorAll('#coSubtabs button').forEach(b=>b.classList.toggle('active', b.dataset.co===t));
+  document.querySelectorAll('.co-pane').forEach(p=>p.classList.add('hidden'));
+  $('co-'+t).classList.remove('hidden');
+  if(t==='ledger') renderLedger();
+  if(t==='assets') renderAssets();
+  if(t==='requests') renderRequests();
+  if(t==='loss') renderLoss();
+}
+
+// ---- possession ledger ----
+async function renderLedger(){
+  $('co-ledger').innerHTML=`<div class="card"><div class="muted">Loading…</div></div>`;
+  const { data, error } = await sb.from('checkouts').select('*').eq('status','out').order('checked_out_at',{ascending:false});
+  if(error) return ($('co-ledger').innerHTML=`<div class="card">${esc(error.message)}</div>`);
+  const out=data||[];
+  const overdue=out.filter(c=>c.expected_return_at && c.expected_return_at<todayISO());
+  const nameById=Object.fromEntries(state.assets.map(a=>[a.id,a]));
+  const head = overdue.length?`<div class="alertbar bad">⏰ ${overdue.length} overdue return${overdue.length>1?'s':''}.</div>`:'';
+  $('co-ledger').innerHTML = head + `<div class="card">
+    <div class="stats" style="margin-bottom:14px">
+      <div class="stat accent"><div class="n">${out.length}</div><div class="l">Checked out now</div></div>
+      <div class="stat ${overdue.length?'bad':''}"><div class="n">${overdue.length}</div><div class="l">Overdue</div></div>
+      <div class="stat"><div class="n">${state.assets.filter(a=>a.status==='available').length}</div><div class="l">Available</div></div>
+    </div>
+    <div class="table-wrap"><table><thead><tr><th>Asset</th><th>Person</th><th>Where</th><th>Out</th><th>Due</th><th></th></tr></thead><tbody>${
+      out.length? out.map(c=>{
+        const a=nameById[c.asset_id]; const od=c.expected_return_at && c.expected_return_at<todayISO();
+        return `<tr><td><strong>${esc(a?.name||'—')}</strong>${a?.asset_tag?` <span class="muted mono" style="font-size:12px">${esc(a.asset_tag)}</span>`:''}</td>
+          <td>${esc(c.person_name)}</td><td class="muted">${esc(c.location||'—')}</td>
+          <td class="muted nowrap">${fmtDate(c.checked_out_at)}</td>
+          <td class="nowrap">${c.expected_return_at?`<span class="badge ${od?'b-bad':'b-muted'}">${fmtDate(c.expected_return_at)}</span>`:'<span class="muted">—</span>'}</td>
+          <td class="right"><button class="btn btn-primary btn-sm" data-checkin="${c.id}">Check in</button></td></tr>`;
+      }).join('') : `<tr><td colspan="6" class="empty">Nothing checked out. Everything's home.</td></tr>`
+    }</tbody></table></div></div>`;
+}
+
+// ---- assets list ----
+function renderAssets(){
+  const statusBadge=(s)=>({available:'b-good',checked_out:'b-blue',lost:'b-bad',maintenance:'b-warn',retired:'b-muted'}[s]||'b-muted');
+  $('co-assets').innerHTML=`<div class="card"><div class="table-wrap"><table>
+    <thead><tr><th></th><th>Asset</th><th>Category</th><th>Location</th><th>Condition</th><th>Status</th><th></th></tr></thead>
+    <tbody>${ state.assets.length? state.assets.map(a=>{
+      const photo=a.photo_url?`<img class="thumb" src="${esc(a.photo_url)}" alt="">`:`<div class="thumb"></div>`;
+      const actions = a.status==='available'
+        ? `<button class="btn btn-primary btn-sm" data-co1="${a.id}">Check out</button>`
+        : a.status==='checked_out' ? `<span class="badge b-blue">out</span>` : '';
+      return `<tr><td>${photo}</td>
+        <td><strong>${esc(a.name)}</strong>${a.asset_tag?` <span class="muted mono" style="font-size:12px">${esc(a.asset_tag)}</span>`:''}</td>
+        <td class="muted">${esc(a.category||'—')}</td><td class="muted">${esc(locName(a.location_id))}</td>
+        <td><span class="badge b-muted">${esc(a.condition)}</span></td>
+        <td><span class="badge ${statusBadge(a.status)}">${esc(a.status.replace('_',' '))}</span></td>
+        <td class="right nowrap">${actions}
+          <button class="btn btn-sm" data-asset-hist="${a.id}">History</button>
+          <button class="btn btn-sm" data-asset-edit="${a.id}">Edit</button>
+          <button class="btn btn-sm" data-asset-loss="${a.id}">Loss</button></td></tr>`;
+    }).join('') : `<tr><td colspan="7" class="empty">No assets yet — add your first.</td></tr>` }</tbody></table></div></div>`;
+}
+
+window.openAssetForm = (id) => {
+  const a = id ? state.assets.find(x=>x.id===id) : null;
+  if(!a && !unlimited(limitOf('assets')) && state.assets.length>=limitOf('assets'))
+    return toast(`Asset limit reached for the ${PLANS[state.account.plan].label} plan (${limitOf('assets')}). Upgrade to add more.`);
+  const locOpts=state.locations.map(l=>`<option value="${l.id}" ${a&&a.location_id===l.id?'selected':''}>${esc(l.name)}</option>`).join('');
+  const condOpts=CONDITIONS.map(c=>`<option ${a&&a.condition===c?'selected':''}>${c}</option>`).join('');
+  modal(`<h3>${a?'Edit asset':'Add asset'}</h3><p class="sub">One physical asset, checked out to one person at a time.</p>
+    <div class="row"><div style="flex:2"><label>Name <span class="req">*</span></label><input id="g_name" value="${esc(a?.name||'')}"></div>
+      <div><label>Asset tag</label><input id="g_tag" value="${esc(a?.asset_tag||'')}" placeholder="optional"></div></div>
+    <div class="row"><div><label>Category</label><input id="g_cat" value="${esc(a?.category||'')}" placeholder="e.g., Power Tools"></div>
+      <div><label>Location</label><select id="g_loc"><option value="">—</option>${locOpts}</select></div></div>
+    <div class="row"><div><label>Condition</label><select id="g_cond">${condOpts}</select></div>
+      <div><label>Value</label><input id="g_val" type="number" min="0" step="any" value="${a?.value??''}"></div></div>
+    <label>Description</label><textarea id="g_desc" placeholder="Optional">${esc(a?.description||'')}</textarea>
+    <label>Photo</label><input id="g_photo" type="file" accept="image/*">
+    <div class="actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="g_save">${a?'Save':'Add asset'}</button></div>`);
+  $('g_save').onclick = async () => {
+    const name=$('g_name').value.trim(); if(!name) return toast('Name is required.');
+    $('g_save').disabled=true;
+    let photo_url=a?.photo_url||null;
+    const file=$('g_photo').files?.[0];
+    if(file){ const url=await uploadPhoto(file,'assets'); if(url) photo_url=url; }
+    const row={ account_id:state.account.id, name, asset_tag:$('g_tag').value.trim()||null,
+      category:$('g_cat').value.trim()||null, location_id:$('g_loc').value||null,
+      condition:$('g_cond').value, value:$('g_val').value!==''?Number($('g_val').value):null,
+      description:$('g_desc').value.trim()||null, photo_url, updated_at:new Date().toISOString() };
+    const { error } = a ? await sb.from('assets').update(row).eq('id',a.id) : await sb.from('assets').insert(row);
+    $('g_save').disabled=false;
+    if(error) return toast(error.message.includes('duplicate')?`Asset tag "${row.asset_tag}" already exists.`:error.message);
+    closeModal(); toast(a?'Asset saved':'Asset added'); await loadAssets(); renderCheckout();
+  };
+};
+
+// ---- checkout (single + bulk) ----
+window.openCheckoutForm = (presetId) => {
+  const avail=state.assets.filter(a=>a.status==='available');
+  if(!avail.length) return toast('No available assets to check out.');
+  const opts=avail.map(a=>`<label style="display:flex;align-items:center;gap:8px;margin:4px 0;color:var(--txt);cursor:pointer">
+      <input type="checkbox" class="co_asset" value="${a.id}" ${presetId===a.id?'checked':''} style="width:auto">
+      ${esc(a.name)}${a.asset_tag?` <span class="muted mono" style="font-size:12px">${esc(a.asset_tag)}</span>`:''}</label>`).join('');
+  modal(`<h3>Check out</h3><p class="sub">Who has it, where it's going, and when it's due back. Select multiple for a bulk checkout.</p>
+    <label>Assets <span class="req">*</span></label>
+    <div style="max-height:170px;overflow:auto;border:1px solid var(--line);border-radius:9px;padding:8px 10px;background:var(--panel2)">${opts}</div>
+    <div class="row"><div><label>Person <span class="req">*</span></label><input id="c_person" placeholder="Name"></div>
+      <div><label>Email</label><input id="c_email" type="email" placeholder="optional"></div></div>
+    <div class="row"><div><label>Where it's going</label><input id="c_where" placeholder="e.g., Site 4 / Truck 12"></div>
+      <div><label>Expected return</label><input id="c_due" type="date"></div></div>
+    <div class="actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="c_save">Check out</button></div>`);
+  $('c_save').onclick = async () => {
+    const ids=[...document.querySelectorAll('.co_asset:checked')].map(c=>c.value);
+    const person=$('c_person').value.trim();
+    if(!ids.length) return toast('Select at least one asset.');
+    if(!person) return toast('Person is required.');
+    $('c_save').disabled=true;
+    const due=$('c_due').value||null;
+    const rows=ids.map(asset_id=>({ account_id:state.account.id, asset_id, person_name:person,
+      person_email:$('c_email').value.trim()||null, location:$('c_where').value.trim()||null,
+      checked_out_by:state.userId, checked_out_by_name:state.userEmail, expected_return_at:due, status:'out' }));
+    const { error } = await sb.from('checkouts').insert(rows);
+    if(error){ $('c_save').disabled=false; return toast(error.message); }
+    await sb.from('assets').update({ status:'checked_out', updated_at:new Date().toISOString() }).in('id',ids);
+    closeModal(); toast(`Checked out ${ids.length} asset(s) to ${person}`);
+    await loadAssets(); renderCheckout();
+  };
+};
+
+// ---- check-in / return ----
+async function openCheckin(checkoutId){
+  const { data:c } = await sb.from('checkouts').select('*').eq('id',checkoutId).single();
+  if(!c) return;
+  const a=state.assets.find(x=>x.id===c.asset_id);
+  const condOpts=CONDITIONS.filter(x=>x!=='retired').map(x=>`<option ${a&&a.condition===x?'selected':''}>${x}</option>`).join('');
+  modal(`<h3>Check in — ${esc(a?.name||'asset')}</h3><p class="sub">Out to <strong>${esc(c.person_name)}</strong> since ${fmtDate(c.checked_out_at)}.</p>
+    <div class="row"><div><label>Condition on return</label><select id="r_cond">${condOpts}</select></div></div>
+    <label>Return notes</label><textarea id="r_notes" placeholder="Any damage or issues?"></textarea>
+    <label>Return photo</label><input id="r_photo" type="file" accept="image/*">
+    <div class="actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="r_save">Check in</button></div>`);
+  $('r_save').onclick = async () => {
+    $('r_save').disabled=true;
+    let return_photo_url=null;
+    const file=$('r_photo').files?.[0];
+    if(file){ return_photo_url=await uploadPhoto(file,'returns'); }
+    const cond=$('r_cond').value;
+    const { error } = await sb.from('checkouts').update({ status:'returned', returned_at:new Date().toISOString(),
+      return_condition:cond, return_notes:$('r_notes').value.trim()||null, return_photo_url }).eq('id',c.id);
+    if(error){ $('r_save').disabled=false; return toast(error.message); }
+    await sb.from('assets').update({ status:'available', condition:cond, updated_at:new Date().toISOString() }).eq('id',c.asset_id);
+    // First-in-line: oldest open request for this asset is notified first.
+    const { data:reqs } = await sb.from('asset_requests').select('requested_by_name').eq('asset_id',c.asset_id).eq('status','open').order('created_at',{ascending:true}).limit(1);
+    closeModal();
+    await loadAssets(); renderCheckout();
+    if(reqs && reqs.length) toast(`Checked in. Next in line: ${reqs[0].requested_by_name} — notify them it's available.`);
+    else toast('Checked in.');
+  };
+}
+
+// ---- chain of custody (per asset) ----
+async function openAssetHistory(assetId){
+  const a=state.assets.find(x=>x.id===assetId);
+  modal(`<h3>History — ${esc(a?.name||'asset')}</h3><p class="sub">Chain of custody + loss events.</p>
+    <div id="histBody" class="muted">Loading…</div>
+    <div class="actions"><button class="btn btn-primary" onclick="closeModal()">Close</button></div>`);
+  const [{ data:cos }, { data:losses }] = await Promise.all([
+    sb.from('checkouts').select('*').eq('asset_id',assetId).order('checked_out_at',{ascending:false}),
+    sb.from('loss_events').select('*').eq('asset_id',assetId).order('created_at',{ascending:false}),
+  ]);
+  const coHtml=(cos&&cos.length)?`<table><thead><tr><th>Person</th><th>Out</th><th>Returned</th><th>Condition</th></tr></thead><tbody>${
+    cos.map(c=>`<tr><td>${esc(c.person_name)}</td><td class="muted nowrap">${fmtDate(c.checked_out_at)}</td>
+      <td class="nowrap">${c.returned_at?fmtDate(c.returned_at):'<span class="badge b-blue">out</span>'}</td>
+      <td class="muted">${esc(c.return_condition||'—')}</td></tr>`).join('')}</tbody></table>`:`<p class="muted">No checkouts yet.</p>`;
+  const lossHtml=(losses&&losses.length)?`<h2 style="margin-top:14px">Loss events</h2><table><thead><tr><th>When</th><th>Category</th><th>Note</th><th>Cost</th></tr></thead><tbody>${
+    losses.map(l=>`<tr><td class="muted nowrap">${fmtDate(l.created_at)}</td><td><span class="badge b-bad">${esc(l.category)}</span></td>
+      <td>${esc(l.note)}</td><td>${money(l.cost_impact)}</td></tr>`).join('')}</tbody></table>`:'';
+  $('histBody').innerHTML=`<div class="table-wrap">${coHtml}${lossHtml}</div>`;
+}
+
+// ---- requests (purchasing signal) ----
+async function renderRequests(){
+  $('co-requests').innerHTML=`<div class="card"><div class="muted">Loading…</div></div>`;
+  const { data, error } = await sb.from('asset_requests').select('*').order('created_at',{ascending:true});
+  if(error) return ($('co-requests').innerHTML=`<div class="card">${esc(error.message)}</div>`);
+  const all=data||[]; const open=all.filter(r=>r.status==='open');
+  // group open by item_name for the purchasing signal
+  const groups={};
+  open.forEach(r=>{ const k=(r.item_name||'').toLowerCase(); (groups[k]=groups[k]||{name:r.item_name,count:0,oldest:r.created_at,urgent:0}); groups[k].count++; if(r.created_at<groups[k].oldest) groups[k].oldest=r.created_at; if(r.urgency==='high'||r.urgency==='critical') groups[k].urgent++; });
+  const ranked=Object.values(groups).sort((a,b)=>b.count-a.count);
+  const urgBadge=(u)=>({low:'b-muted',normal:'b-blue',high:'b-warn',critical:'b-bad'}[u]||'b-muted');
+  $('co-requests').innerHTML=`
+    ${ranked.length?`<div class="card"><h2>Purchasing signal — most requested</h2><div class="table-wrap"><table><thead><tr><th>Item</th><th class="right">Open requests</th><th class="right">High/critical</th><th>Waiting since</th></tr></thead><tbody>${
+      ranked.map(g=>`<tr><td><strong>${esc(g.name)}</strong></td><td class="right"><span class="badge b-accent">${g.count}</span></td>
+        <td class="right">${g.urgent||'—'}</td><td class="muted nowrap">${fmtDate(g.oldest)}</td></tr>`).join('')
+    }</tbody></table></div></div>`:''}
+    <div class="card"><h2>Open requests (oldest first)</h2><div class="table-wrap"><table><thead><tr><th>Item</th><th>Requested by</th><th>Needed</th><th>Urgency</th><th>Waited</th><th></th></tr></thead><tbody>${
+      open.length? open.map(r=>{
+        const waited=Math.max(0,Math.round((Date.now()-new Date(r.created_at))/86400000));
+        return `<tr><td><strong>${esc(r.item_name)}</strong>${r.note?`<div class="help">${esc(r.note)}</div>`:''}</td>
+          <td>${esc(r.requested_by_name)}</td><td class="muted nowrap">${r.needed_by?fmtDate(r.needed_by):'—'}</td>
+          <td><span class="badge ${urgBadge(r.urgency)}">${esc(r.urgency)}</span></td>
+          <td class="muted">${waited}d</td>
+          <td class="right"><button class="btn btn-primary btn-sm" data-req-fill="${r.id}">Fulfill</button>
+            <button class="btn btn-sm" data-req-cancel="${r.id}">Cancel</button></td></tr>`;
+      }).join('') : `<tr><td colspan="6" class="empty">No open requests.</td></tr>` }</tbody></table></div></div>`;
+}
+
+window.openRequestForm = () => {
+  const assetOpts=state.assets.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
+  const urgOpts=URGENCY.map(([v,l])=>`<option value="${v}" ${v==='normal'?'selected':''}>${l}</option>`).join('');
+  modal(`<h3>Request an asset</h3><p class="sub">When an asset's unavailable, log a request. Requests stack up — the count is your purchasing signal.</p>
+    <label>What do you need? <span class="req">*</span></label><input id="q_item" placeholder="e.g., Impact driver">
+    <label>Link to a specific asset <span class="muted">(optional)</span></label><select id="q_asset"><option value="">— none —</option>${assetOpts}</select>
+    <div class="row"><div><label>Your name <span class="req">*</span></label><input id="q_name" value="${esc(state.userEmail||'')}"></div>
+      <div><label>Email</label><input id="q_email" type="email" placeholder="optional"></div></div>
+    <div class="row"><div><label>Needed by</label><input id="q_needed" type="date"></div>
+      <div><label>Urgency</label><select id="q_urg">${urgOpts}</select></div></div>
+    <label>Note</label><textarea id="q_note" placeholder="Optional"></textarea>
+    <div class="actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="q_save">Submit request</button></div>`);
+  $('q_asset').onchange = () => { const a=state.assets.find(x=>x.id===$('q_asset').value); if(a && !$('q_item').value.trim()) $('q_item').value=a.name; };
+  $('q_save').onclick = async () => {
+    const item=$('q_item').value.trim(), name=$('q_name').value.trim();
+    if(!item) return toast('Describe what you need.');
+    if(!name) return toast('Your name is required.');
+    $('q_save').disabled=true;
+    const { error } = await sb.from('asset_requests').insert({ account_id:state.account.id,
+      asset_id:$('q_asset').value||null, item_name:item, requested_by_name:name,
+      requested_by_email:$('q_email').value.trim()||null, needed_by:$('q_needed').value||null,
+      urgency:$('q_urg').value, note:$('q_note').value.trim()||null, status:'open' });
+    $('q_save').disabled=false;
+    if(error) return toast(error.message);
+    closeModal(); toast('Request submitted'); if(state.coTab==='requests') renderRequests();
+  };
+};
+
+// ---- loss / shrinkage (category + note REQUIRED) ----
+async function renderLoss(){
+  $('co-loss').innerHTML=`<div class="card"><div class="muted">Loading…</div></div>`;
+  const { data, error } = await sb.from('loss_events').select('*').order('created_at',{ascending:false}).limit(300);
+  if(error) return ($('co-loss').innerHTML=`<div class="card">${esc(error.message)}</div>`);
+  const rows=data||[];
+  const total=rows.reduce((s,r)=>s+Number(r.cost_impact||0),0);
+  $('co-loss').innerHTML=`<div class="card">
+    <div class="section-head"><div class="stats" style="flex:1">
+      <div class="stat bad"><div class="n">${rows.length}</div><div class="l">Loss events</div></div>
+      <div class="stat bad"><div class="n">${money0(total)}</div><div class="l">Cost impact</div></div>
+    </div><button class="btn btn-primary btn-sm" onclick="openLossForm()">+ Report loss</button></div>
+    <div class="table-wrap"><table><thead><tr><th>When</th><th>Subject</th><th>Category</th><th>Note</th><th>Cost</th><th>Responsible</th></tr></thead><tbody>${
+      rows.length? rows.map(l=>`<tr><td class="muted nowrap">${fmtDate(l.created_at)}</td><td>${esc(l.subject_name)}</td>
+        <td><span class="badge b-bad">${esc(l.category.replace('_',' '))}</span></td><td>${esc(l.note)}</td>
+        <td>${money(l.cost_impact)}</td><td class="muted">${esc(l.person_responsible||'—')}</td></tr>`).join('')
+      : `<tr><td colspan="6" class="empty">No loss events recorded.</td></tr>` }</tbody></table></div></div>`;
+}
+
+window.openLossForm = (assetId) => {
+  const a = assetId ? state.assets.find(x=>x.id===assetId) : null;
+  const assetOpts=state.assets.map(x=>`<option value="${x.id}" ${a&&a.id===x.id?'selected':''}>${esc(x.name)}</option>`).join('');
+  const itemOpts=state.items.map(x=>`<option value="i:${x.id}">${esc(x.name)} (item)</option>`).join('');
+  const catOpts=LOSS_CATS.map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
+  modal(`<h3>Report loss / shrinkage</h3><p class="sub">A category <strong>and</strong> a note are required — no blank loss records (enforced in the database too).</p>
+    <label>Subject <span class="req">*</span></label>
+    <select id="x_subject"><optgroup label="Assets">${assetOpts}</optgroup><optgroup label="Items">${itemOpts}</optgroup></select>
+    <div class="row"><div><label>Category <span class="req">*</span></label><select id="x_cat">${catOpts}</select></div>
+      <div><label>Cost impact</label><input id="x_cost" type="number" min="0" step="any" placeholder="$"></div></div>
+    <label>Note <span class="req">*</span></label><textarea id="x_note" placeholder="What happened? (required)"></textarea>
+    <label>Person responsible</label><input id="x_person" placeholder="Optional">
+    <div class="actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="x_save">Record loss</button></div>`);
+  $('x_save').onclick = async () => {
+    const note=$('x_note').value.trim();
+    const cat=$('x_cat').value;
+    if(!cat) return toast('Category is required.');
+    if(!note) return toast('A note is required — no blank loss records.');
+    const sel=$('x_subject').value;
+    let asset_id=null, item_id=null, subject_name='';
+    if(sel.startsWith('i:')){ item_id=sel.slice(2); subject_name=state.items.find(x=>x.id===item_id)?.name||'item'; }
+    else { asset_id=sel; subject_name=state.assets.find(x=>x.id===asset_id)?.name||'asset'; }
+    $('x_save').disabled=true;
+    const { error } = await sb.from('loss_events').insert({ account_id:state.account.id, asset_id, item_id, subject_name,
+      category:cat, note, cost_impact:$('x_cost').value!==''?Number($('x_cost').value):null,
+      person_responsible:$('x_person').value.trim()||null, reported_by:state.userId, reported_by_name:state.userEmail });
+    if(error){ $('x_save').disabled=false; return toast(error.message); }
+    // mark an asset lost (not when wear_and_tear, which is just condition)
+    if(asset_id && cat!=='wear_and_tear'){ await sb.from('assets').update({ status:'lost', updated_at:new Date().toISOString() }).eq('id',asset_id); await loadAssets(); }
+    closeModal(); toast('Loss recorded'); if(state.coTab==='loss') renderLoss(); else renderCheckout();
+  };
+};
+
+// ============================================================================
+// MODULE 3 — REPORTS
+// ============================================================================
+window.presetRange = (days) => { $('rpFrom').value=daysAgoISO(days); $('rpTo').value=todayISO(); if(state.view==='reports') runReports(); };
+
+window.runReports = async () => {
+  if(state.view!=='reports') return;
+  const from=$('rpFrom').value||daysAgoISO(30), to=$('rpTo').value||todayISO();
+  const fromISO=from+'T00:00:00', toISO=to+'T23:59:59';
+  $('reportsBody').innerHTML=`<div class="card"><div class="muted">Crunching ${fmtDate(from)} → ${fmtDate(to)}…</div></div>`;
+
+  const [coRes, reqRes, lossRes] = await Promise.all([
+    sb.from('checkouts').select('*').gte('checked_out_at',fromISO).lte('checked_out_at',toISO),
+    sb.from('asset_requests').select('*'),
+    sb.from('loss_events').select('*').gte('created_at',fromISO).lte('created_at',toISO),
+  ]);
+  const cos=coRes.data||[], reqs=reqRes.data||[], losses=lossRes.data||[];
+  const assetById=Object.fromEntries(state.assets.map(a=>[a.id,a]));
+
+  // 1. Most checked out
+  const coCount={}; cos.forEach(c=>{ coCount[c.asset_id]=(coCount[c.asset_id]||0)+1; });
+  const mostCo=Object.entries(coCount).map(([id,n])=>({name:assetById[id]?.name||'—',n})).sort((a,b)=>b.n-a.n).slice(0,15);
+
+  // 2. Most requested (+ avg wait)
+  const rg={};
+  reqs.forEach(r=>{ const k=(r.item_name||'').toLowerCase(); (rg[k]=rg[k]||{name:r.item_name,n:0,wait:0,open:0}); rg[k].n++;
+    const end=r.fulfilled_at?new Date(r.fulfilled_at):new Date(); rg[k].wait+=(end-new Date(r.created_at)); if(r.status==='open') rg[k].open++; });
+  const mostReq=Object.values(rg).map(g=>({name:g.name,n:g.n,open:g.open,avg:g.n?Math.round(g.wait/g.n/86400000):0})).sort((a,b)=>b.n-a.n).slice(0,15);
+
+  // 3. Loss & shrinkage + monthly trend
+  const lossTotal=losses.reduce((s,l)=>s+Number(l.cost_impact||0),0);
+  const byCat={}; losses.forEach(l=>{ byCat[l.category]=(byCat[l.category]||0)+1; });
+  const byMonth={}; losses.forEach(l=>{ const m=String(l.created_at).slice(0,7); (byMonth[m]=byMonth[m]||{n:0,cost:0}); byMonth[m].n++; byMonth[m].cost+=Number(l.cost_impact||0); });
+
+  // 4. Inventory health (current snapshot)
+  const ro=reorderList();
+  const zero=state.items.filter(i=>Number(i.quantity)===0);
+  const invValue=state.items.reduce((s,i)=>s+Number(i.quantity||0)*Number(i.unit_cost||0),0);
+  const { data:openCo } = await sb.from('checkouts').select('expected_return_at,person_name,asset_id').eq('status','out');
+  const overdue=(openCo||[]).filter(c=>c.expected_return_at && c.expected_return_at<todayISO());
+
+  // 5. Checkout activity
+  const returns=cos.filter(c=>c.returned_at && c.returned_at>=fromISO && c.returned_at<=toISO);
+  const dow=[0,0,0,0,0,0,0]; cos.forEach(c=>{ dow[new Date(c.checked_out_at).getDay()]++; });
+  const dowNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const busiest=dow.indexOf(Math.max(...dow));
+  const byPerson={}; cos.forEach(c=>{ byPerson[c.person_name]=(byPerson[c.person_name]||0)+1; });
+  const topPeople=Object.entries(byPerson).map(([name,n])=>({name,n})).sort((a,b)=>b.n-a.n).slice(0,10);
+
+  const tbl=(rows,cols)=> rows.length?`<div class="table-wrap"><table><thead><tr>${cols.map(c=>`<th class="${c.r?'right':''}">${c.h}</th>`).join('')}</tr></thead><tbody>${
+    rows.map(r=>`<tr>${cols.map(c=>`<td class="${c.r?'right':''}">${c.f(r)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:`<p class="empty">No data in range.</p>`;
+
+  $('reportsBody').innerHTML=`
+    <div class="card"><h2>Inventory health <span class="muted" style="text-transform:none">(current snapshot)</span></h2>
+      <div class="stats">
+        <div class="stat ${ro.length?'warn':'good'}"><div class="n">${ro.length}</div><div class="l">Below min</div></div>
+        <div class="stat ${zero.length?'bad':''}"><div class="n">${zero.length}</div><div class="l">Zero stock</div></div>
+        <div class="stat ${overdue.length?'bad':''}"><div class="n">${overdue.length}</div><div class="l">Overdue returns</div></div>
+        <div class="stat accent"><div class="n">${money0(invValue)}</div><div class="l">Inventory value</div></div>
+      </div>
+      ${ro.length?`<h2 style="margin-top:16px">Reorder list</h2>${tbl(ro,[
+        {h:'Item',f:r=>esc(r.name)},{h:'On hand',r:1,f:r=>r.quantity},{h:'Min/Max',r:1,f:r=>`${r.min_level}/${r.max_level}`},{h:'Order',r:1,f:r=>`<span class="badge b-warn">${reorderQty(r)}</span>`}])}`:''}
+    </div>
+
+    <div class="card"><h2>Most checked-out items</h2>${tbl(mostCo,[{h:'Asset',f:r=>esc(r.name)},{h:'Checkouts',r:1,f:r=>`<span class="badge b-accent">${r.n}</span>`}])}</div>
+
+    <div class="card"><h2>Most requested items <span class="muted" style="text-transform:none">(purchasing signal)</span></h2>${tbl(mostReq,[
+      {h:'Item',f:r=>esc(r.name)},{h:'Requests',r:1,f:r=>`<span class="badge b-accent">${r.n}</span>`},{h:'Still open',r:1,f:r=>r.open||'—'},{h:'Avg wait',r:1,f:r=>r.avg+'d'}])}</div>
+
+    <div class="card"><h2>Loss &amp; shrinkage</h2>
+      <div class="stats"><div class="stat bad"><div class="n">${losses.length}</div><div class="l">Events</div></div>
+        <div class="stat bad"><div class="n">${money0(lossTotal)}</div><div class="l">Cost impact</div></div></div>
+      ${Object.keys(byCat).length?`<h2 style="margin-top:16px">By category</h2>${tbl(Object.entries(byCat).map(([c,n])=>({c,n})),[{h:'Category',f:r=>esc(r.c.replace('_',' '))},{h:'Events',r:1,f:r=>r.n}])}`:''}
+      ${Object.keys(byMonth).length?`<h2 style="margin-top:16px">Monthly trend</h2>${tbl(Object.entries(byMonth).sort().map(([m,v])=>({m,...v})),[{h:'Month',f:r=>r.m},{h:'Events',r:1,f:r=>r.n},{h:'Cost',r:1,f:r=>money0(r.cost)}])}`:''}
+      ${losses.length?`<h2 style="margin-top:16px">Events</h2>${tbl(losses.slice(0,50),[{h:'When',f:r=>fmtDate(r.created_at)},{h:'Subject',f:r=>esc(r.subject_name)},{h:'Category',f:r=>esc(r.category.replace('_',' '))},{h:'Note',f:r=>esc(r.note)},{h:'Cost',r:1,f:r=>money(r.cost_impact)},{h:'Responsible',f:r=>esc(r.person_responsible||'—')}])}`:''}
+    </div>
+
+    <div class="card"><h2>Checkout activity</h2>
+      <div class="stats">
+        <div class="stat accent"><div class="n">${cos.length}</div><div class="l">Checkouts</div></div>
+        <div class="stat good"><div class="n">${returns.length}</div><div class="l">Returns</div></div>
+        <div class="stat"><div class="n">${cos.length?dowNames[busiest]:'—'}</div><div class="l">Busiest day</div></div>
+      </div>
+      ${topPeople.length?`<h2 style="margin-top:16px">Who checks out most</h2>${tbl(topPeople,[{h:'Person',f:r=>esc(r.name)},{h:'Checkouts',r:1,f:r=>`<span class="badge b-blue">${r.n}</span>`}])}`:''}
+    </div>
+
+    <div class="card"><button class="btn btn-sm" onclick="exportReportCSV()">Export reports CSV</button>
+      <button class="btn btn-sm" onclick="printReports()">PDF / print</button></div>`;
+
+  // stash for export/print
+  state._report={ from, to, mostCo, mostReq, losses, lossTotal, byCat, byMonth, ro, zero, invValue, overdue, cos, returns, topPeople, busiest:cos.length?dowNames[busiest]:'—' };
+};
+
+window.generateMonthly = () => {
+  const now=new Date(); const first=new Date(now.getFullYear(),now.getMonth(),1);
+  $('rpFrom').value=first.toISOString().slice(0,10); $('rpTo').value=todayISO();
+  switchView('reports');
+  toast('Monthly report — '+now.toLocaleString(undefined,{month:'long',year:'numeric'}));
+};
+
+// ============================================================================
+// EXPORTS — CSV (Blob) + PDF (print)
+// ============================================================================
+function csvCell(v){ const s=String(v??''); return /[",\n]/.test(s)?`"${s.replace(/"/g,'""')}"`:s; }
+function downloadCSV(filename, header, rows){
+  const csv=[header.join(','), ...rows.map(r=>r.map(csvCell).join(','))].join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; a.click(); URL.revokeObjectURL(a.href);
+}
+window.exportItemsCSV = () => {
+  const rows=filteredItems().map(i=>[i.name,i.sku||'',i.category||'',locName(i.location_id),i.quantity,i.min_level,i.max_level,i.unit_cost??'',(i.tags||[]).join('|')]);
+  downloadCSV('quantos-inventory.csv',['Name','SKU','Category','Location','Quantity','Min','Max','Unit cost','Tags'],rows);
+  toast('Inventory exported');
+};
+window.exportReportCSV = () => {
+  const r=state._report; if(!r) return;
+  const rows=[];
+  rows.push(['MOST CHECKED OUT','']); r.mostCo.forEach(x=>rows.push([x.name,x.n]));
+  rows.push([]); rows.push(['MOST REQUESTED','Requests','Avg wait (d)']); r.mostReq.forEach(x=>rows.push([x.name,x.n,x.avg]));
+  rows.push([]); rows.push(['LOSS EVENTS','Category','Cost','Note']); r.losses.forEach(x=>rows.push([x.subject_name,x.category,x.cost_impact??'',x.note]));
+  downloadCSV(`quantos-reports-${r.from}_to_${r.to}.csv`,['Report',' ',' ',' '],rows);
+  toast('Reports exported');
+};
+
+function doPrint(html){ $('printArea').innerHTML=html; document.body.classList.add('printing'); window.print(); setTimeout(()=>document.body.classList.remove('printing'),300); }
+window.printInventory = () => {
+  const list=filteredItems();
+  const rows=list.map(i=>`<tr><td>${esc(i.name)}</td><td>${esc(i.sku||'')}</td><td>${esc(i.category||'')}</td><td>${esc(locName(i.location_id))}</td><td>${i.quantity}</td><td>${i.min_level}/${i.max_level}</td></tr>`).join('');
+  doPrint(`<h1>Quantos — Inventory</h1><div class="muted">${esc(state.account.name)} · ${fmtDate(todayISO())} · ${list.length} items</div>
+    <table><thead><tr><th>Item</th><th>SKU</th><th>Category</th><th>Location</th><th>On hand</th><th>Min/Max</th></tr></thead><tbody>${rows}</tbody></table>`);
+};
+window.printReports = () => {
+  const r=state._report; if(!r) return;
+  const sec=(title,head,rows)=>`<h2>${title}</h2><table><thead><tr>${head.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows||'<tr><td>—</td></tr>'}</tbody></table>`;
+  doPrint(`<h1>Quantos — Reports</h1><div class="muted">${esc(state.account.name)} · ${fmtDate(r.from)} → ${fmtDate(r.to)}</div>
+    ${sec('Inventory health',['Below min','Zero stock','Overdue','Value'],`<tr><td>${r.ro.length}</td><td>${r.zero.length}</td><td>${r.overdue.length}</td><td>${money0(r.invValue)}</td></tr>`)}
+    ${sec('Most checked out',['Asset','Checkouts'],r.mostCo.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.n}</td></tr>`).join(''))}
+    ${sec('Most requested',['Item','Requests','Avg wait'],r.mostReq.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.n}</td><td>${x.avg}d</td></tr>`).join(''))}
+    ${sec('Loss & shrinkage ('+money0(r.lossTotal)+')',['When','Subject','Category','Cost','Note'],r.losses.map(x=>`<tr><td>${fmtDate(x.created_at)}</td><td>${esc(x.subject_name)}</td><td>${esc(x.category)}</td><td>${money(x.cost_impact)}</td><td>${esc(x.note)}</td></tr>`).join(''))}
+    ${sec('Checkout activity',['Checkouts','Returns','Busiest day'],`<tr><td>${r.cos.length}</td><td>${r.returns.length}</td><td>${r.busiest}</td></tr>`)}`);
+};
+
+// ============================================================================
+// SETTINGS — locations, billing, team
+// ============================================================================
+function renderSettings(){ renderLocations(); renderBilling(); loadTeam(); }
+
+function renderLocations(){
+  $('locBody').innerHTML = state.locations.length?`<div class="table-wrap"><table><thead><tr><th>Location</th><th class="right">Items</th><th class="right">Assets</th><th></th></tr></thead><tbody>${
+    state.locations.map(l=>{
+      const items=state.items.filter(i=>i.location_id===l.id).length, assets=state.assets.filter(a=>a.location_id===l.id).length;
+      return `<tr><td><strong>${esc(l.name)}</strong></td><td class="right muted">${items}</td><td class="right muted">${assets}</td>
+        <td class="right"><button class="btn btn-bad btn-sm" data-del-loc="${l.id}">Delete</button></td></tr>`;
+    }).join('')}</tbody></table></div>`:`<p class="muted">No locations yet.</p>`;
+}
+window.addLocation = async () => {
+  const name=$('newLocName').value.trim(); if(!name) return toast('Enter a location name.');
+  const { error } = await sb.from('locations').insert({ account_id:state.account.id, name });
+  if(error) return toast(error.message.includes('duplicate')?'That location already exists.':error.message);
+  $('newLocName').value=''; await loadLocations(); renderLocations(); toast('Location added');
+};
+
+function renderBilling(){
+  const acct=state.account; const p=PLANS[acct.plan]||PLANS.starter; const isOwner=state.role==='owner';
+  const subscribed=!!acct.stripe_customer_id && (acct.status==='active'||acct.status==='past_due');
+  let trial='';
+  if(acct.status==='trialing' && acct.trial_ends_at){
+    const days=Math.max(0,Math.ceil((new Date(acct.trial_ends_at)-Date.now())/86400000));
+    trial=`<p class="help">Trial — ${days} day${days===1?'':'s'} left. Subscribe to keep access.</p>`;
+  }
+  const caps=`<div class="pill-row" style="margin:8px 0 12px">
+    <span class="badge b-muted">${unlimited(p.limits.items)?'∞':p.limits.items} items · ${state.items.length} used</span>
+    <span class="badge b-muted">${unlimited(p.limits.assets)?'∞':p.limits.assets} assets · ${state.assets.length} used</span>
+    <span class="badge b-muted">${unlimited(p.limits.users)?'∞':p.limits.users} users</span></div>`;
+  if(subscribed){
+    $('billingBody').innerHTML=`<p>Current plan: <span class="badge b-accent">${p.label}</span> · <strong>${esc(acct.status)}</strong></p>${caps}
+      ${isOwner?`<button class="btn" onclick="manageBilling()">Manage billing</button>`:`<p class="help">Only an owner can manage billing.</p>`}`;
+    return;
+  }
+  if(!isOwner){ $('billingBody').innerHTML=`${trial}<p>Plan: <span class="badge b-accent">${p.label}</span></p>${caps}<p class="help">Ask an owner to manage billing.</p>`; return; }
+  const tiers=['starter','pro','enterprise'];
+  $('billingBody').innerHTML=`${trial}${caps}
+    <div class="row" style="margin:6px 0 12px">
+      <label style="margin:0;flex:0 0 auto;color:var(--txt)"><input type="radio" name="bint" value="monthly" checked style="width:auto"> Monthly</label>
+      <label style="margin:0;flex:0 0 auto;color:var(--txt)"><input type="radio" name="bint" value="annual" style="width:auto"> Annual <span class="muted">(2 months free)</span></label>
+    </div>
+    <div class="stats">${tiers.map(t=>{ const pl=PLANS[t]; const cur=acct.plan===t;
+      return `<div class="stat"><div style="font-weight:800;font-size:16px">${pl.label}</div>
+        <div class="muted" style="font-size:13px;margin:4px 0 6px">$${pl.monthly}/mo · $${pl.annual}/yr</div>
+        <div class="help" style="margin-bottom:10px">${unlimited(pl.limits.items)?'Unlimited':pl.limits.items} items · ${unlimited(pl.limits.assets)?'∞':pl.limits.assets} assets · ${unlimited(pl.limits.users)?'∞':pl.limits.users} users</div>
+        <button class="btn ${cur?'btn-ghost':'btn-primary'} btn-sm" ${cur?'disabled':''} onclick="subscribe('${t}')">${cur?'Current':'Choose'}</button></div>`;
+    }).join('')}</div>
+    <p class="help">Billing is stubbed — checkout returns a friendly notice until Stripe price IDs are configured.</p>`;
+}
+
+async function loadTeam(){
+  const { data, error } = await sb.rpc('list_account_members');
+  if(error) return ($('teamBody').innerHTML=`<p class="muted">${esc(error.message)}</p>`);
+  const rows=data||[];
+  $('seatCount').textContent=`${rows.length} / ${unlimited(limitOf('users'))?'∞':limitOf('users')}`;
+  const isMgr=canManage();
+  $('teamBody').innerHTML=`<div class="table-wrap"><table><thead><tr><th>Member</th><th>Role</th><th></th></tr></thead><tbody>${
+    rows.map(m=>{ const self=m.user_id===state.userId;
+      const roleCell=(isMgr && !self && m.role!=='owner')
+        ? `<select data-role="${m.user_id}">${ROLES.map(r=>`<option ${r===m.role?'selected':''}>${r}</option>`).join('')}</select>`
+        : `<span class="badge b-muted">${esc(m.role)}</span>`;
+      const rm=(isMgr && !self && m.role!=='owner')?`<button class="btn btn-bad btn-sm" data-delmem="${m.user_id}">Remove</button>`:'';
+      return `<tr><td>${esc(m.email)}${self?' <span class="muted">(you)</span>':''}</td><td>${roleCell}</td><td class="right">${rm}</td></tr>`;
+    }).join('')}</tbody></table></div>`;
+}
+
+async function callFn(path, body){
+  const { data:{ session } } = await sb.auth.getSession();
+  const res=await fetch(path,{ method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+(session?.access_token||'') }, body:JSON.stringify(body) });
+  let out={}; try{ out=await res.json(); }catch(_){}
+  return { ok:res.ok, out };
+}
+window.subscribe = async (plan) => {
+  const interval=document.querySelector('input[name="bint"]:checked')?.value||'monthly';
+  toast('Opening checkout…');
+  const { out } = await callFn('/.netlify/functions/create-checkout-session',{ accountId:state.account.id, plan, interval });
+  if(out.url) location.href=out.url; else toast(out.error||'Checkout unavailable (billing not configured yet).');
+};
+window.manageBilling = async () => {
+  const { out } = await callFn('/.netlify/functions/create-portal-session',{ accountId:state.account.id });
+  if(out.url) location.href=out.url; else toast(out.error||'Billing portal unavailable.');
+};
+
+// ============================================================================
+// DELEGATED HANDLERS
+// ============================================================================
+document.addEventListener('click', async (e)=>{
+  const t=e.target;
+  // inventory
+  let el;
+  if((el=t.closest('[data-inc]'))) return openAdjust(el.dataset.inc, 1);
+  if((el=t.closest('[data-dec]'))) return openAdjust(el.dataset.dec, -1);
+  if((el=t.closest('[data-edit-item]'))) return openItemForm(el.dataset.editItem);
+  if((el=t.closest('[data-hist-item]'))) return openTxnLog(el.dataset.histItem);
+  if((el=t.closest('[data-pg]'))){ const pages=Math.max(1,Math.ceil(filteredItems().length/INV_PAGE_SIZE));
+    state.invPage=el.dataset.pg==='next'?Math.min(pages,state.invPage+1):Math.max(1,state.invPage-1); return renderItems(); }
+  // checkout
+  if((el=t.closest('[data-checkin]'))) return openCheckin(el.dataset.checkin);
+  if((el=t.closest('[data-co1]'))) return openCheckoutForm(el.dataset.co1);
+  if((el=t.closest('[data-asset-edit]'))) return openAssetForm(el.dataset.assetEdit);
+  if((el=t.closest('[data-asset-hist]'))) return openAssetHistory(el.dataset.assetHist);
+  if((el=t.closest('[data-asset-loss]'))) return openLossForm(el.dataset.assetLoss);
+  if((el=t.closest('[data-req-fill]'))){ const { error }=await sb.from('asset_requests').update({ status:'fulfilled', fulfilled_at:new Date().toISOString() }).eq('id',el.dataset.reqFill); return error?toast(error.message):(toast('Request fulfilled'),renderRequests()); }
+  if((el=t.closest('[data-req-cancel]'))){ const { error }=await sb.from('asset_requests').update({ status:'cancelled' }).eq('id',el.dataset.reqCancel); return error?toast(error.message):(toast('Request cancelled'),renderRequests()); }
+  // settings
+  if((el=t.closest('[data-del-loc]'))){ if(!confirm('Delete this location? Items/assets there keep their other data.')) return;
+    const { error }=await sb.from('locations').delete().eq('id',el.dataset.delLoc); if(error) return toast(error.message);
+    await loadLocations(); renderLocations(); return toast('Location deleted'); }
+  if((el=t.closest('[data-delmem]'))){ if(!confirm('Remove this member?')) return;
+    const { error }=await sb.from('memberships').delete().eq('user_id',el.dataset.delmem).eq('account_id',state.account.id);
+    return error?toast(error.message):(toast('Member removed'),loadTeam()); }
+});
+document.addEventListener('change', async (e)=>{
+  const r=e.target.closest('[data-role]');
+  if(r){ const { error }=await sb.from('memberships').update({ role:r.value }).eq('user_id',r.dataset.role).eq('account_id',state.account.id);
+    toast(error?error.message:'Role updated'); }
+});
+
+// surface checkout return status
+(() => { const q=new URLSearchParams(location.search).get('checkout');
+  if(q==='success') setTimeout(()=>toast('✅ Subscription active — thanks!'),800);
+  else if(q==='canceled') setTimeout(()=>toast('Checkout canceled.'),800); })();
+
+init();
+</script>
+</body>
+</html>

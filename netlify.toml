@@ -1,0 +1,48 @@
+[build]
+  functions = "netlify/functions"
+  publish = "apps"          # the static SPA (apps/index.html) + landing page
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"  # bundles the lib/*.js helpers into each function
+
+[build.environment]
+  # Node 22: supabase-js v2 constructs a Realtime client that needs a native
+  # WebSocket, which Node <22 lacks — on 18 it throws at createClient() in the
+  # functions. 22 also keeps us off EOL Node.
+  NODE_VERSION = "22"
+
+# --- Routing -----------------------------------------------------------------
+# Marketing landing page at the root; the app (sign-in + 3 modules) under /app.
+# Both are rewrites (status 200) so the visible URL stays put. The root rule
+# needs force = true because apps/index.html would otherwise shadow "/".
+[[redirects]]
+  from = "/"
+  to = "/landing.html"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/app"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/app/*"
+  to = "/index.html"
+  status = 200
+
+# Baseline security headers for every response. CSP is scoped to the origins the
+# app uses: esm.sh (supabase-js), Google Fonts, and any Supabase project
+# (REST/Auth over https, Realtime over wss, Storage images). 'unsafe-inline' is
+# required because the app logic is an inline <script type="module"> and the
+# styles are inline; XSS is mitigated separately by per-string output escaping.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), microphone=()"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://esm.sh; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"

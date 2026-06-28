@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<title>Quantos — Asset Inventory &amp; Checkout, made simple</title>
+<meta name="description" content="Quantos tracks inventory with min/max auto-reorder, checks assets out to people with a live possession ledger, stacks request tickets into a purchasing signal, and enforces loss tracking with required notes." />
+<style>
+  :root{ --bg:#0f1117; --panel:#1a1d27; --panel2:#222633; --line:#2c3142; --txt:#eef0f6; --muted:#8b91a7; --accent:#9a88f0; --accent-ink:#11121a; --good:#3ddc97; --warn:#f5b14c; --bad:#f06b6b; }
+  *{box-sizing:border-box} html,body{margin:0}
+  body{font-family:'Inter',-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--txt);-webkit-font-smoothing:antialiased;line-height:1.5}
+  a{color:var(--accent);text-decoration:none}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+  header{display:flex;align-items:center;justify-content:space-between;padding:18px 0}
+  .brand{display:flex;align-items:center;gap:10px}
+  .brand .name{font-family:'Sora',sans-serif;font-weight:800;font-size:22px;letter-spacing:-.5px}
+  .brand .name b{color:var(--accent)}
+  .btn{display:inline-block;border-radius:10px;padding:11px 18px;font-weight:700;cursor:pointer;border:1px solid var(--line);background:var(--panel2);color:var(--txt)}
+  .btn-primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+  .btn-primary:hover{filter:brightness(1.08)}
+  .hero{padding:64px 0 40px;text-align:center}
+  .hero h1{font-family:'Sora',sans-serif;font-size:clamp(34px,6vw,58px);line-height:1.05;margin:0 0 18px;letter-spacing:-1.5px}
+  .hero h1 .g{background:linear-gradient(120deg,#9a88f0,#5aa9f0);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .hero p{font-size:19px;color:var(--muted);max-width:680px;margin:0 auto 28px}
+  .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .eyebrow{display:inline-block;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);border:1px solid var(--line);background:var(--panel);padding:6px 14px;border-radius:20px;margin-bottom:22px}
+  section{padding:46px 0}
+  .sec-title{font-family:'Sora',sans-serif;font-size:30px;text-align:center;margin:0 0 8px;letter-spacing:-.5px}
+  .sec-sub{text-align:center;color:var(--muted);max-width:600px;margin:0 auto 36px}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .feat{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px}
+  .feat .ic{width:44px;height:44px;border-radius:11px;background:var(--panel2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:14px}
+  .feat h3{font-family:'Sora',sans-serif;margin:0 0 8px;font-size:19px}
+  .feat p{color:var(--muted);margin:0;font-size:14.5px}
+  .feat ul{color:var(--muted);font-size:14px;margin:12px 0 0;padding-left:18px}
+  .feat li{margin:4px 0}
+  .price-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;max-width:880px;margin:0 auto}
+  .price{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px;text-align:center}
+  .price.pop{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+  .price .tier{font-family:'Sora',sans-serif;font-weight:700;font-size:20px}
+  .price .amt{font-size:40px;font-family:'Sora',sans-serif;font-weight:800;margin:8px 0 2px}
+  .price .amt span{font-size:15px;color:var(--muted);font-weight:600}
+  .price ul{list-style:none;padding:0;margin:18px 0;color:var(--muted);font-size:14.5px;text-align:left}
+  .price li{padding:7px 0;border-bottom:1px solid var(--line)}
+  .price li b{color:var(--txt)}
+  .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--accent-ink);background:var(--accent);padding:3px 10px;border-radius:20px;margin-bottom:8px}
+  footer{border-top:1px solid var(--line);padding:30px 0;color:var(--muted);font-size:14px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+  @media(max-width:760px){ .cards,.price-grid{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <svg width="30" height="30" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <path d="M24 4 6 13v22l18 9 18-9V13L24 4Z" stroke="#2c3142" stroke-width="2.5" fill="#1a1d27"/>
+        <path d="M24 4 6 13l18 9 18-9L24 4Z" fill="#9a88f0" opacity="0.92"/>
+        <path d="M24 22v22M6 13v22l18 9M42 13v22l-18 9" stroke="#9a88f0" stroke-width="2.3" stroke-linejoin="round" fill="none"/>
+        <circle cx="24" cy="22" r="2.6" fill="#eef0f6"/>
+      </svg>
+      <span class="name">Quan<b>tos</b></span>
+    </div>
+    <a class="btn btn-primary" href="/app">Sign in</a>
+  </header>
+
+  <div class="hero">
+    <span class="eyebrow">Inventory · Checkout · Reports</span>
+    <h1>Know what you have.<br><span class="g">Know who has it.</span></h1>
+    <p>Quantos is the simple, fast way to track inventory and check assets out to people — with min/max auto-reorder, a live possession ledger, request tickets that become a purchasing signal, and loss tracking you can't leave blank.</p>
+    <div class="cta">
+      <a class="btn btn-primary" href="/app">Start free trial</a>
+      <a class="btn" href="#features">See how it works</a>
+    </div>
+  </div>
+</div>
+
+<section id="features" class="wrap">
+  <h2 class="sec-title">Three modules, one clean app</h2>
+  <p class="sec-sub">No QR codes, no barcodes, no clutter. Just the tracking you actually use, on any device.</p>
+  <div class="cards">
+    <div class="feat">
+      <div class="ic">📦</div>
+      <h3>Inventory Tracker</h3>
+      <p>Count stock and never run out of the things that matter.</p>
+      <ul>
+        <li>Search, filter & paginate by category, tag, location</li>
+        <li><b>Min/max auto-reorder</b> — drop to min, get "order N to reach max"</li>
+        <li>Photo per item</li>
+        <li>Audit log on every change — reason <b>required</b></li>
+        <li>CSV / PDF export</li>
+      </ul>
+    </div>
+    <div class="feat">
+      <div class="ic">🔑</div>
+      <h3>Asset Checkout</h3>
+      <p>Hand things out and always get them back.</p>
+      <ul>
+        <li>Check out to a person, with expected return & overdue alerts</li>
+        <li>Live <b>possession ledger</b> — who has what, right now</li>
+        <li>Chain of custody per asset and per person</li>
+        <li><b>Request tickets</b> — most-requested = what to buy next</li>
+        <li><b>Loss tracking</b> — category + note required, no blanks</li>
+      </ul>
+    </div>
+    <div class="feat">
+      <div class="ic">📊</div>
+      <h3>Reports</h3>
+      <p>The numbers that drive decisions.</p>
+      <ul>
+        <li>Most checked-out & most-requested items</li>
+        <li>Loss & shrinkage with monthly trend and cost impact</li>
+        <li>Inventory health — below-min, zero stock, total value</li>
+        <li>Checkout activity, busiest days, top users</li>
+        <li>Auto monthly report · CSV / PDF export</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="pricing" class="wrap">
+  <h2 class="sec-title">Simple pricing</h2>
+  <p class="sec-sub">All three modules on every plan. Tiers just raise the caps. 14-day free trial, no card required.</p>
+  <div class="price-grid">
+    <div class="price">
+      <div class="tier">Starter</div>
+      <div class="amt">$49<span>/mo</span></div>
+      <ul><li><b>200</b> items</li><li><b>50</b> assets</li><li><b>5</b> users</li><li>All 3 modules</li></ul>
+      <a class="btn" href="/app">Start free</a>
+    </div>
+    <div class="price pop">
+      <div class="tag">Most popular</div>
+      <div class="tier">Pro</div>
+      <div class="amt">$99<span>/mo</span></div>
+      <ul><li><b>1,000</b> items</li><li><b>250</b> assets</li><li><b>25</b> users</li><li>All 3 modules</li></ul>
+      <a class="btn btn-primary" href="/app">Start free</a>
+    </div>
+    <div class="price">
+      <div class="tier">Enterprise</div>
+      <div class="amt">$199<span>/mo</span></div>
+      <ul><li><b>Unlimited</b> items</li><li><b>Unlimited</b> assets</li><li><b>Unlimited</b> users</li><li>All 3 modules</li></ul>
+      <a class="btn" href="/app">Start free</a>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+  <footer>
+    <span>© Quantos — asset inventory & checkout.</span>
+    <span><a href="/app">Sign in</a> · <a href="#pricing">Pricing</a></span>
+  </footer>
+</div>
+</body>
+</html>

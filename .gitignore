@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.netlify/
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+
+# local Claude settings
+.claude/settings.local.json

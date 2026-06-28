@@ -1,0 +1,65 @@
+# Quantos
+
+> Quantos is an asset inventory and checkout platform for teams that need to know
+> what they have and who has it. It tracks stock with min/max auto-reorder, checks
+> physical assets out to people with a live possession ledger, turns unmet demand
+> into request tickets (a purchasing signal), and enforces loss tracking that can
+> never be left blank. Priced per organization — not per item.
+
+Website: https://quantos.app/
+App / sign in: https://quantos.app/app
+
+## What Quantos is
+
+Quantos runs the "where are our things" side of an operation from a single, fast,
+mobile-friendly app. It is built for warehouses, job sites, equipment rooms, IT
+asset closets, schools, and field crews — anywhere stock gets consumed and tools
+get borrowed. No QR codes, no barcodes, no TV display mode: just the tracking
+people actually use.
+
+## The three modules
+
+1. Inventory Tracker — Browse, search, and paginate items by category, tag, and
+   location. Add or subtract stock; every change is written to a transaction
+   audit log with a REQUIRED reason (never blank). Each item has a min and max
+   stock level: when quantity drops to or below the min, Quantos calculates how
+   many to order to reach the max and raises a reorder alert
+   (e.g. min 5, max 25, on hand 3 -> "order 22"). Photo per item. CSV/PDF export.
+
+2. Asset Checkout — Check an asset out to a person (who, what, when, where, and
+   the expected return date), then check it back in with condition notes and an
+   optional return photo. The open checkouts ARE the live possession ledger —
+   who has what, right now — and overdue items are flagged when the return date
+   passes. Every asset and every person has a full checkout history (chain of
+   custody). Supports bulk checkout and condition tracking
+   (new/good/fair/poor/damaged/retired).
+   - Request tickets: when an asset is unavailable, a user submits a request
+     (who needs it, what, when, urgency: low/normal/high/critical). Requests
+     stack up; the most-requested item is the purchasing signal, and the oldest
+     open request is first in line to be notified when an asset frees up.
+   - Loss & shrinkage: marking something lost/broken/stolen REQUIRES both a
+     category (lost, broken, misuse, stolen, wear_and_tear, other) AND a note.
+     No blank loss records — enforced in the UI and by database constraints.
+
+3. Reports — Most checked-out items, most-requested items (with average wait
+   time), loss & shrinkage (events, category breakdown, monthly trend, cost
+   impact, person responsible), inventory health (below-min items with reorder
+   quantities, zero stock, overdue returns, total inventory value), and checkout
+   activity (checkouts/returns per period, busiest day, who checks out most).
+   Auto-generated monthly report. CSV/PDF export.
+
+## Pricing
+
+All three modules are included on every plan; tiers differ only by caps.
+14-day free trial, no card required.
+
+- Starter — $49/mo: 200 items, 50 assets, 5 users.
+- Pro — $99/mo: 1,000 items, 250 assets, 25 users.
+- Enterprise — $199/mo: unlimited items, assets, and users.
+
+## How it is built
+
+Vanilla HTML/CSS/JS single-page app (apps/index.html) with view switching;
+Netlify Functions (serverless) for billing; Supabase (PostgreSQL with row-level
+security) for data and auth; Stripe for subscriptions. Multi-tenant: every row
+is scoped to an account and isolated by RLS.
