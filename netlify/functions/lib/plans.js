@@ -1,7 +1,9 @@
 // Shared plan helpers for Netlify Functions (CommonJS).
-// Mirrors packages/entitlements/index.js — kept in CJS so functions can require it.
-// (Files under netlify/functions/lib are bundled into each function, not exposed
-//  as endpoints themselves.)
+// SINGLE source of truth for plan -> caps + Stripe price env vars on the server.
+// The Stripe webhook writes these caps onto the account row, where DB triggers
+// (migration 0009) enforce them; the frontend's PLANS object is display copy
+// only. (Files under netlify/functions/lib are bundled into each function, not
+// exposed as endpoints themselves.)
 
 const UNLIMITED = 1_000_000;
 

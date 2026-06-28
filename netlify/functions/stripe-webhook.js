@@ -49,11 +49,13 @@ exports.handler = async (event) => {
     return { statusCode: 400, body: JSON.stringify({ error: `Webhook Error: ${err.message}` }) };
   }
 
-  // Idempotency: claim the event id first so concurrent retries/replays don't
-  // double-process. If processing then FAILS, we DELETE the marker (catch block)
-  // so Stripe's retry reprocesses instead of being swallowed as a duplicate.
-  const seen = await supabase.from('stripe_events').insert({ id: evt.id, type: evt.type });
-  if (seen.error && seen.error.code === '23505') {
+  // Idempotency, recorded AFTER success. An early read short-circuits the common
+  // retry; the authoritative guard is the unique insert *after* processing. So a
+  // crash mid-process leaves NO marker, and Stripe's retry reprocesses cleanly
+  // (the account writes below are idempotent absolute sets). An event we fail to
+  // apply is never recorded as "done", so nothing can be silently swallowed.
+  const prior = await supabase.from('stripe_events').select('id').eq('id', evt.id).maybeSingle();
+  if (prior.data) {
     return { statusCode: 200, body: JSON.stringify({ received: true, duplicate: true }) };
   }
 
@@ -110,11 +112,16 @@ exports.handler = async (event) => {
         console.log(`Unhandled event type: ${evt.type}`);
     }
 
+    // Processing succeeded — record the event so future retries skip it. A 23505
+    // here only means a concurrent delivery already recorded it, which is fine.
+    const mark = await supabase.from('stripe_events').insert({ id: evt.id, type: evt.type });
+    if (mark.error && mark.error.code !== '23505') {
+      console.error('Event applied but idempotency marker failed to record:', mark.error.message);
+    }
     return { statusCode: 200, body: JSON.stringify({ received: true }) };
   } catch (error) {
     console.error('Webhook handler error:', error);
-    // Roll back the idempotency marker so Stripe's retry reprocesses this event.
-    await supabase.from('stripe_events').delete().eq('id', evt.id);
+    // No marker was written, so a 500 simply lets Stripe retry the whole event.
     return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
   }
 };

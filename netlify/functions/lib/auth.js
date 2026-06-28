@@ -19,12 +19,18 @@ async function getUser(supabase, event) {
 
 /** True if `userId` holds one of `roles` on `accountId`. */
 async function hasAccountRole(supabase, accountId, userId, roles) {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('memberships')
     .select('role')
     .eq('account_id', accountId)
     .eq('user_id', userId)
     .maybeSingle();
+  if (error) {
+    // Fail closed, but don't let a transient DB error masquerade as a clean
+    // "not allowed" — log it so a misleading 403 is traceable.
+    console.error('hasAccountRole lookup failed:', error.message);
+    return false;
+  }
   return !!data && roles.includes(data.role);
 }
 
