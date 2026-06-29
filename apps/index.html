@@ -170,6 +170,13 @@
   <p id="authMsg" class="muted" style="font-size:13px;margin-top:12px"></p>
 </div>
 
+<!-- FATAL BOOT ERROR — shown only if the app can't start, so a failure is never a blank screen -->
+<div id="fatalView" class="card hidden" style="max-width:440px;margin:56px auto;text-align:center">
+  <h2 style="text-transform:none;color:var(--bad)">Couldn't load Quantos</h2>
+  <p class="muted" id="fatalMsg">Something went wrong reaching the server.</p>
+  <button class="btn btn-primary" style="margin-top:8px" onclick="location.reload()">Reload</button>
+</div>
+
 <!-- APP -->
 <main id="appView" class="hidden">
   <!-- No org linked -->
@@ -324,6 +331,12 @@ const LOSS_CATS = [
 ];
 const URGENCY = [['low','Low'],['normal','Normal'],['high','High'],['critical','Critical']];
 const ADJUST_REASONS = ['Received shipment','Used / consumed','Damaged / loss','Cycle count adjustment','Returned to stock','Transfer','Other'];
+// DISPLAY COPY ONLY — labels, prices, and the per-tier numbers shown on the
+// billing screen. The AUTHORITATIVE caps live on the account row
+// (item_limit / asset_limit / user_limit), are kept in sync with the plan by
+// the Stripe webhook, and are enforced by database triggers (see migration
+// 0009). Server enforcement means a typo here can only mis-describe a tier, it
+// can never let anyone exceed a real limit.
 const PLANS = {
   starter:    { label:'Starter',    monthly:49,  annual:490,  limits:{items:200,  assets:50,  users:5} },
   pro:        { label:'Pro',        monthly:99,  annual:990,  limits:{items:1000, assets:250, users:25} },
@@ -349,7 +362,10 @@ const money0 = (n) => (n==null) ? '$0' : '$'+Math.round(Number(n)).toLocaleStrin
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}) : '—';
 const todayISO = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 const daysAgoISO = (n) => new Date(Date.now()-n*86400000).toISOString().slice(0,10);
-const limitOf = (kind) => (PLANS[state.account?.plan]||PLANS.starter).limits[kind];
+// Read the authoritative cap from the account row; fall back to display copy
+// only if the column is somehow absent.
+const LIMIT_COL = { items:'item_limit', assets:'asset_limit', users:'user_limit' };
+const limitOf = (kind) => Number(state.account?.[LIMIT_COL[kind]] ?? (PLANS[state.account?.plan]||PLANS.starter).limits[kind]);
 const unlimited = (n) => n>=1e6;
 const locName = (id) => state.locations.find(l=>l.id===id)?.name || '—';
 const canManage = () => state.role==='owner' || state.role==='manager';
@@ -381,6 +397,16 @@ async function uploadPhoto(file, folder){
 // ============================================================================
 // AUTH / BOOT
 // ============================================================================
+// Reveal the app shell; hide the auth + fatal panels. Called only once the
+// first view's data is in hand, so the app never flashes an empty frame.
+function revealApp(){ $('authView').classList.add('hidden'); $('fatalView').classList.add('hidden'); $('appView').classList.remove('hidden'); }
+// Any boot failure lands here as a visible, reloadable panel — never a blank page.
+function showFatal(msg){
+  $('authView').classList.add('hidden'); $('appView').classList.add('hidden');
+  $('fatalMsg').textContent = msg || 'Something went wrong reaching the server.';
+  $('fatalView').classList.remove('hidden');
+}
+
 async function init(){
   const { data:{ session } } = await sb.auth.getSession();
   if(session) await onSignedIn(); else $('authView').classList.remove('hidden');
@@ -397,11 +423,11 @@ $('authBtn').onclick = async () => {
     if(!data.session){ localStorage.setItem('qx_pending_org', name); $('authMsg').textContent='Account created — check your email to confirm, then sign in.'; setAuthTab('signin'); return; }
     const { error:rpcErr } = await sb.rpc('create_account_for_current_user', { p_name:name });
     if(rpcErr) return ($('authMsg').textContent=rpcErr.message);
-    await onSignedIn();
+    try { await onSignedIn(); } catch(e){ showFatal((e&&e.message)||String(e)); }
   } else {
     const { error } = await sb.auth.signInWithPassword({ email, password });
     if(error) return ($('authMsg').textContent=error.message);
-    await onSignedIn();
+    try { await onSignedIn(); } catch(e){ showFatal((e&&e.message)||String(e)); }
   }
 };
 window.signOut = async () => { await sb.auth.signOut(); location.reload(); };
@@ -415,32 +441,34 @@ $('naCreateBtn').onclick = async () => {
 };
 
 async function onSignedIn(){
-  $('authView').classList.add('hidden'); $('appView').classList.remove('hidden');
   const { data:{ user } } = await sb.auth.getUser();
   state.userId=user?.id; state.userEmail=user?.email;
 
   let { data:mem, error:memErr } = await sb.from('memberships').select('account_id, role').limit(1).maybeSingle();
-  if(memErr) return toast("Couldn't load your account — check connection and reload.");
+  if(memErr) throw new Error("Couldn't load your account — check your connection and reload.");
   if(!mem){
     const pending = localStorage.getItem('qx_pending_org');
     if(pending){
       const { error:rpcErr } = await sb.rpc('create_account_for_current_user', { p_name:pending });
       localStorage.removeItem('qx_pending_org');
-      if(rpcErr){ $('noAccount').classList.remove('hidden'); renderHeader(); return toast(rpcErr.message); }
+      if(rpcErr){ revealApp(); $('noAccount').classList.remove('hidden'); renderHeader(); return toast(rpcErr.message); }
       ({ data:mem } = await sb.from('memberships').select('account_id, role').limit(1).maybeSingle());
     }
-    if(!mem){ $('noAccount').classList.remove('hidden'); renderHeader(); return; }
+    if(!mem){ revealApp(); $('noAccount').classList.remove('hidden'); renderHeader(); return; }
   }
   state.role=mem.role;
   const { data:acct, error:acctErr } = await sb.from('accounts')
     .select('id, name, plan, status, item_limit, asset_limit, user_limit, trial_ends_at, stripe_customer_id')
     .eq('id', mem.account_id).single();
-  if(acctErr || !acct) return toast("Couldn't load your organization — reload.");
+  if(acctErr || !acct) throw new Error("Couldn't load your organization — reload.");
   state.account=acct;
 
+  // Load the first view's data BEFORE revealing the shell, so the app appears
+  // already populated and a failure surfaces before we commit to the app frame.
+  await Promise.all([loadLocations(), loadItems(), loadAssets()]);
+  revealApp();
   $('mainNav').classList.remove('hidden');
   renderHeader();
-  await Promise.all([loadLocations(), loadItems(), loadAssets()]);
   presetRange(30);
   switchView('inventory');
 }
@@ -503,10 +531,15 @@ function reorderList(){ return state.items.filter(isLow); }
 function reorderQty(i){ return Math.max(Number(i.max_level||0) - Number(i.quantity||0), 0); }
 
 function renderInventory(){
-  // category + location filter options
+  // category + location filter options — preserve the active selection. This
+  // re-runs on a +/- adjust or item save, so without restoring the value the
+  // user's filter would silently reset to "All" and the list re-expand.
+  const prevCat=$('invCat').value, prevLoc=$('invLoc').value;
   const cats=[...new Set(state.items.map(i=>i.category).filter(Boolean))].sort();
   $('invCat').innerHTML=`<option value="">All categories</option>`+cats.map(c=>`<option>${esc(c)}</option>`).join('');
   $('invLoc').innerHTML=`<option value="">All locations</option>`+state.locations.map(l=>`<option value="${l.id}">${esc(l.name)}</option>`).join('');
+  if(prevCat && cats.includes(prevCat)) $('invCat').value=prevCat;
+  if(prevLoc && state.locations.some(l=>l.id===prevLoc)) $('invLoc').value=prevLoc;
 
   const ro=reorderList();
   const orderTotal=ro.reduce((s,i)=>s+reorderQty(i),0);
@@ -844,8 +877,8 @@ window.openCheckoutForm = (presetId) => {
 
 // ---- check-in / return ----
 async function openCheckin(checkoutId){
-  const { data:c } = await sb.from('checkouts').select('*').eq('id',checkoutId).single();
-  if(!c) return;
+  const { data:c, error:cErr } = await sb.from('checkouts').select('*').eq('id',checkoutId).single();
+  if(cErr || !c) return toast(cErr ? cErr.message : 'That checkout could not be loaded.');
   const a=state.assets.find(x=>x.id===c.asset_id);
   const condOpts=CONDITIONS.filter(x=>x!=='retired').map(x=>`<option ${a&&a.condition===x?'selected':''}>${x}</option>`).join('');
   modal(`<h3>Check in — ${esc(a?.name||'asset')}</h3><p class="sub">Out to <strong>${esc(c.person_name)}</strong> since ${fmtDate(c.checked_out_at)}.</p>
@@ -859,17 +892,16 @@ async function openCheckin(checkoutId){
     let return_photo_url=null;
     const file=$('r_photo').files?.[0];
     if(file){ return_photo_url=await uploadPhoto(file,'returns'); }
-    const cond=$('r_cond').value;
-    const { error } = await sb.from('checkouts').update({ status:'returned', returned_at:new Date().toISOString(),
-      return_condition:cond, return_notes:$('r_notes').value.trim()||null, return_photo_url }).eq('id',c.id);
+    // One atomic RPC closes the checkout AND frees the asset (and hands back the
+    // next person waiting), so the possession ledger and asset status can never
+    // drift apart on a partial failure.
+    const { data:nextName, error } = await sb.rpc('check_in_asset', {
+      p_checkout_id:c.id, p_condition:$('r_cond').value,
+      p_notes:$('r_notes').value.trim()||null, p_photo_url:return_photo_url });
     if(error){ $('r_save').disabled=false; return toast(error.message); }
-    await sb.from('assets').update({ status:'available', condition:cond, updated_at:new Date().toISOString() }).eq('id',c.asset_id);
-    // First-in-line: oldest open request for this asset is notified first.
-    const { data:reqs } = await sb.from('asset_requests').select('requested_by_name').eq('asset_id',c.asset_id).eq('status','open').order('created_at',{ascending:true}).limit(1);
     closeModal();
     await loadAssets(); renderCheckout();
-    if(reqs && reqs.length) toast(`Checked in. Next in line: ${reqs[0].requested_by_name} — notify them it's available.`);
-    else toast('Checked in.');
+    toast(nextName ? `Checked in. Next in line: ${nextName} — notify them it's available.` : 'Checked in.');
   };
 }
 
@@ -879,10 +911,12 @@ async function openAssetHistory(assetId){
   modal(`<h3>History — ${esc(a?.name||'asset')}</h3><p class="sub">Chain of custody + loss events.</p>
     <div id="histBody" class="muted">Loading…</div>
     <div class="actions"><button class="btn btn-primary" onclick="closeModal()">Close</button></div>`);
-  const [{ data:cos }, { data:losses }] = await Promise.all([
+  const [coRes, lossRes] = await Promise.all([
     sb.from('checkouts').select('*').eq('asset_id',assetId).order('checked_out_at',{ascending:false}),
     sb.from('loss_events').select('*').eq('asset_id',assetId).order('created_at',{ascending:false}),
   ]);
+  if(coRes.error || lossRes.error){ $('histBody').innerHTML=`<p class="empty">Couldn't load history — ${esc((coRes.error||lossRes.error).message)}</p>`; return; }
+  const cos=coRes.data, losses=lossRes.data;
   const coHtml=(cos&&cos.length)?`<table><thead><tr><th>Person</th><th>Out</th><th>Returned</th><th>Condition</th></tr></thead><tbody>${
     cos.map(c=>`<tr><td>${esc(c.person_name)}</td><td class="muted nowrap">${fmtDate(c.checked_out_at)}</td>
       <td class="nowrap">${c.returned_at?fmtDate(c.returned_at):'<span class="badge b-blue">out</span>'}</td>
@@ -1000,20 +1034,17 @@ window.openLossForm = (assetId) => {
     if(sel.startsWith('i:')){ item_id=sel.slice(2); subject_name=state.items.find(x=>x.id===item_id)?.name||'item'; }
     else { asset_id=sel; subject_name=state.assets.find(x=>x.id===asset_id)?.name||'asset'; }
     $('x_save').disabled=true;
-    const { error } = await sb.from('loss_events').insert({ account_id:state.account.id, asset_id, item_id, subject_name,
-      category:cat, note, cost_impact:$('x_cost').value!==''?Number($('x_cost').value):null,
-      person_responsible:$('x_person').value.trim()||null, reported_by:state.userId, reported_by_name:state.userEmail });
+    // One atomic RPC records the loss AND (for a real asset loss, i.e. anything
+    // but wear_and_tear) marks the asset lost and auto-closes its open checkout,
+    // so the loss ledger and the possession ledger can never disagree.
+    const { error } = await sb.rpc('report_loss', {
+      p_asset_id:asset_id, p_item_id:item_id, p_subject_name:subject_name, p_category:cat, p_note:note,
+      p_cost:$('x_cost').value!==''?Number($('x_cost').value):null,
+      p_person:$('x_person').value.trim()||null, p_reporter_name:state.userEmail });
     if(error){ $('x_save').disabled=false; return toast(error.message); }
-    // mark an asset lost (not when wear_and_tear, which is just condition)
-    if(asset_id && cat!=='wear_and_tear'){
-      const now=new Date().toISOString();
-      await sb.from('assets').update({ status:'lost', updated_at:now }).eq('id',asset_id);
-      // close any open checkout so the possession ledger doesn't keep it "out"
-      await sb.from('checkouts').update({ status:'returned', returned_at:now, return_notes:'Auto-closed — asset reported '+cat })
-        .eq('asset_id',asset_id).eq('status','out');
-      await loadAssets();
-    }
-    closeModal(); toast('Loss recorded'); if(state.coTab==='loss') renderLoss(); else renderCheckout();
+    closeModal(); toast('Loss recorded');
+    await loadAssets();
+    if(state.coTab==='loss') renderLoss(); else renderCheckout();
   };
 };
 
@@ -1033,6 +1064,7 @@ window.runReports = async () => {
     sb.from('asset_requests').select('*'),
     sb.from('loss_events').select('*').gte('created_at',fromISO).lte('created_at',toISO),
   ]);
+  if(coRes.error || reqRes.error || lossRes.error) toast('Some report data failed to load — totals may be incomplete.');
   const cos=coRes.data||[], reqs=reqRes.data||[], losses=lossRes.data||[];
   const assetById=Object.fromEntries(state.assets.map(a=>[a.id,a]));
 
@@ -1189,10 +1221,11 @@ function renderBilling(){
     const days=Math.max(0,Math.ceil((new Date(acct.trial_ends_at)-Date.now())/86400000));
     trial=`<p class="help">Trial — ${days} day${days===1?'':'s'} left. Subscribe to keep access.</p>`;
   }
+  const capItems=limitOf('items'), capAssets=limitOf('assets'), capUsers=limitOf('users');
   const caps=`<div class="pill-row" style="margin:8px 0 12px">
-    <span class="badge b-muted">${unlimited(p.limits.items)?'∞':p.limits.items} items · ${state.items.length} used</span>
-    <span class="badge b-muted">${unlimited(p.limits.assets)?'∞':p.limits.assets} assets · ${state.assets.length} used</span>
-    <span class="badge b-muted">${unlimited(p.limits.users)?'∞':p.limits.users} users</span></div>`;
+    <span class="badge b-muted">${unlimited(capItems)?'∞':capItems} items · ${state.items.length} used</span>
+    <span class="badge b-muted">${unlimited(capAssets)?'∞':capAssets} assets · ${state.assets.length} used</span>
+    <span class="badge b-muted">${unlimited(capUsers)?'∞':capUsers} users</span></div>`;
   if(subscribed){
     $('billingBody').innerHTML=`<p>Current plan: <span class="badge b-accent">${p.label}</span> · <strong>${esc(acct.status)}</strong></p>${caps}
       ${isOwner?`<button class="btn" onclick="manageBilling()">Manage billing</button>`:`<p class="help">Only an owner can manage billing.</p>`}`;
@@ -1273,13 +1306,13 @@ document.addEventListener('click', async (e)=>{
     const { error }=await sb.from('locations').delete().eq('id',el.dataset.delLoc); if(error) return toast(error.message);
     await loadLocations(); renderLocations(); return toast('Location deleted'); }
   if((el=t.closest('[data-delmem]'))){ if(!confirm('Remove this member?')) return;
-    const { error }=await sb.from('memberships').delete().eq('user_id',el.dataset.delmem).eq('account_id',state.account.id);
+    const { error }=await sb.rpc('remove_member', { p_account_id:state.account.id, p_user_id:el.dataset.delmem });
     return error?toast(error.message):(toast('Member removed'),loadTeam()); }
 });
 document.addEventListener('change', async (e)=>{
   const r=e.target.closest('[data-role]');
-  if(r){ const { error }=await sb.from('memberships').update({ role:r.value }).eq('user_id',r.dataset.role).eq('account_id',state.account.id);
-    toast(error?error.message:'Role updated'); }
+  if(r){ const { error }=await sb.rpc('set_member_role', { p_account_id:state.account.id, p_user_id:r.dataset.role, p_role:r.value });
+    toast(error?error.message:'Role updated'); loadTeam(); }
 });
 
 // surface checkout return status
@@ -1287,7 +1320,13 @@ document.addEventListener('change', async (e)=>{
   if(q==='success') setTimeout(()=>toast('✅ Subscription active — thanks!'),800);
   else if(q==='canceled') setTimeout(()=>toast('Checkout canceled.'),800); })();
 
-init();
+// Safety net: nothing should fail silently. A stray rejection becomes a toast
+// instead of a dead button; a boot failure becomes the reloadable fatal panel.
+window.addEventListener('unhandledrejection', (e)=>{
+  console.error('Unhandled rejection:', e.reason);
+  toast('Something went wrong — '+((e.reason&&e.reason.message)||e.reason||'unknown error'));
+});
+init().catch(e=>showFatal((e&&e.message)||String(e)));
 </script>
 </body>
 </html>

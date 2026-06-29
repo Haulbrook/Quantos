@@ -33,11 +33,14 @@ exports.handler = async (event) => {
       return { statusCode: 403, headers: CORS, body: JSON.stringify({ error: 'Owner role required' }) };
     }
 
-    const { data: account } = await supabase
+    const { data: account, error: acctErr } = await supabase
       .from('accounts')
       .select('stripe_customer_id')
       .eq('id', accountId)
       .single();
+    if (acctErr) {
+      return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: `Couldn't load the account: ${acctErr.message}` }) };
+    }
     if (!account?.stripe_customer_id) {
       return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'No billing customer for this account' }) };
     }

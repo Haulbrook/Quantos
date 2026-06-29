@@ -67,7 +67,13 @@ exports.handler = async (event) => {
         metadata: { accountId: account.id },
       });
       customerId = customer.id;
-      await supabase.from('accounts').update({ stripe_customer_id: customerId }).eq('id', account.id);
+      const { error: persistErr } = await supabase.from('accounts').update({ stripe_customer_id: customerId }).eq('id', account.id);
+      if (persistErr) {
+        // Non-fatal: the checkout still carries accountId in metadata, so the
+        // webhook links the subscription regardless. Log loudly, because a
+        // persistent failure here would mint a fresh Stripe customer every try.
+        console.error('Failed to persist stripe_customer_id for account', account.id, persistErr.message);
+      }
     }
 
     const siteUrl = process.env.URL || process.env.APP_URL || 'http://localhost:8888';
